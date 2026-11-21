@@ -1,0 +1,154 @@
+@page "/zrodla"
+@rendermode InteractiveServer
+@inject ISourceService SourceService
+@inject IDemoDataService DemoService
+
+<PageTitle>Źródła danych — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Źródła danych</h1>
+        <p class="page-subtitle">Konfiguracja źródeł dla wszystkich trzech radarów.</p>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OdswiezAsync">Odśwież</button>
+</div>
+
+@if (!string.IsNullOrEmpty(komunikat))
+{
+    <div class="alert alert-info py-2 small">@komunikat</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-9">
+        <div class="card dashboard-card">
+            <div class="card-header dashboard-card-header">Skonfigurowane źródła (@zrodla.Count)</div>
+            <div class="card-body table-responsive">
+                @if (zrodla.Count == 0)
+                {
+                    <div class="empty-panel">Brak źródeł. Załaduj dane demonstracyjne, aby zobaczyć przykładową konfigurację.</div>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Nazwa</th><th>Radar</th><th>Metoda</th><th>Częstotliwość</th>
+                                <th>Ostatni skan</th><th>Odkrycia</th><th>Aktywne</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var source in zrodla)
+                            {
+                                <tr class="@(source.Id == edytowanyId ? "table-primary" : "")">
+                                    <td>
+                                        <span class="fw-semibold">@source.Name</span>
+                                        @if (source.IsDemo) { <span class="badge badge-demo">DEMO</span> }
+                                        <div class="small text-muted">@source.Url</div>
+                                        @if (!string.IsNullOrEmpty(source.LastError))
+                                        {
+                                            <div class="small text-danger">@source.LastError</div>
+                                        }
+                                    </td>
+                                    <td><span class="small">@UiLabels.Radar(source.Radar)</span></td>
+                                    <td><span class="small">@source.FetchMethod</span></td>
+                                    <td><span class="small">co @source.ScanIntervalMinutes min</span></td>
+                                    <td><span class="small">@UiLabels.DataCzas(source.LastSuccessfulScan)</span></td>
+                                    <td>@source.Discoveries.Count</td>
+                                    <td><span class="badge @(source.IsActive ? "bg-success" : "bg-secondary")">@(source.IsActive ? "Tak" : "Nie")</span></td>
+                                    <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => WybierzAsync(source.Id)">Edytuj</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-3">
+        <div class="card dashboard-card mb-3">
+            <div class="card-header dashboard-card-header">Edycja źródła</div>
+            <div class="card-body">
+                @if (edytowany is null)
+                {
+                    <p class="text-muted small">Wybierz źródło z listy, aby zmienić jego ustawienia.</p>
+                }
+                else
+                {
+                    <div class="mb-2"><strong class="small">@edytowany.Name</strong></div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" @bind="aktywne" id="aktywne" />
+                        <label class="form-check-label form-label-sm" for="aktywne">Źródło aktywne</label>
+                    </div>
+                    <label class="form-label form-label-sm">Interwał skanowania (minuty)</label>
+                    <input type="number" class="form-control form-control-sm" @bind="interwal" min="5" max="10080" />
+                    <div class="d-grid mt-3">
+                        <button type="button" class="btn btn-sm btn-primary" @onclick="ZapiszAsync">Zapisz</button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card dashboard-card">
+            <div class="card-header dashboard-card-header">Dane demonstracyjne</div>
+            <div class="card-body d-grid gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="LoadDemoAsync">Załaduj przykłady</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearDemoAsync">Usuń przykłady</button>
+                <p class="small text-muted mb-0">Przykłady są oznaczone jako DEMO i nigdy nie są przedstawiane jako rzeczywiste odkrycia.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<Source> zrodla = Array.Empty<Source>();
+    private Source? edytowany;
+    private int? edytowanyId;
+    private bool aktywne;
+    private int interwal = 60;
+    private string komunikat = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await OdswiezAsync();
+
+    private async Task OdswiezAsync()
+    {
+        zrodla = await SourceService.GetAllAsync();
+    }
+
+    private async Task WybierzAsync(int id)
+    {
+        edytowany = await SourceService.GetAsync(id);
+        edytowanyId = id;
+        if (edytowany is not null)
+        {
+            aktywne = edytowany.IsActive;
+            interwal = edytowany.ScanIntervalMinutes;
+        }
+    }
+
+    private async Task ZapiszAsync()
+    {
+        if (edytowanyId is null) return;
+        await SourceService.UpdateAsync(edytowanyId.Value, aktywne, interwal);
+        komunikat = "Konfiguracja źródła została zapisana.";
+        edytowany = null;
+        edytowanyId = null;
+        await OdswiezAsync();
+    }
+
+    private async Task LoadDemoAsync()
+    {
+        var loaded = await DemoService.LoadAsync();
+        komunikat = loaded > 0 ? $"Załadowano {loaded} przykładowych odkryć." : "Dane demonstracyjne są już załadowane.";
+        await OdswiezAsync();
+    }
+
+    private async Task ClearDemoAsync()
+    {
+        var removed = await DemoService.ClearAsync();
+        komunikat = $"Usunięto {removed} przykładowych źródeł wraz z powiązanymi danymi.";
+        edytowany = null;
+        edytowanyId = null;
+        await OdswiezAsync();
+    }
+}

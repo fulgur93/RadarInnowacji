@@ -1,0 +1,179 @@
+@page "/odkrycia/{Id:int}"
+@rendermode InteractiveServer
+@inject IDiscoveryService DiscoveryService
+
+<PageTitle>Szczegóły odkrycia — Radar Innowacji</PageTitle>
+
+@if (model is null)
+{
+    <div class="card dashboard-card"><div class="card-body">
+        <h1 class="h5">Nie znaleziono odkrycia</h1>
+        <p>Materiał o identyfikatorze @Id nie istnieje lub został usunięty.</p>
+        <a href="/odkrycia" class="btn btn-sm btn-outline-primary">Powrót do odkryć</a>
+    </div></div>
+}
+else
+{
+    var discovery = model.Discovery;
+    <div class="page-header">
+        <div>
+            <h1>@discovery.Title</h1>
+            <p class="page-subtitle">
+                @UiLabels.Radar(model.Radar) · @model.SourceName
+                @if (discovery.IsDemo) { <span class="badge badge-demo">DEMO</span> }
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-sm btn-outline-primary" href="@discovery.SourceUrl" target="_blank" rel="noopener noreferrer">Otwórz źródło</a>
+            <button type="button" class="btn btn-sm btn-outline-success" disabled="@(discovery.Status == DiscoveryStatus.Verified)"
+                    @onclick="ZatwierdzAsync">Oznacz jako zweryfikowane</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(komunikat))
+    {
+        <div class="alert alert-success py-2 small">@komunikat</div>
+    }
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-8">
+            <div class="card dashboard-card mb-3">
+                <div class="card-header dashboard-card-header">Opis materiału</div>
+                <div class="card-body">
+                    <p>@discovery.Description</p>
+                    <dl class="row small mb-0">
+                        <dt class="col-sm-3">Autor</dt><dd class="col-sm-9">@(discovery.Author ?? "brak danych")</dd>
+                        <dt class="col-sm-3">Organizacja</dt><dd class="col-sm-9">@(discovery.Organization ?? "brak danych")</dd>
+                        <dt class="col-sm-3">Data publikacji</dt><dd class="col-sm-9">@UiLabels.Data(discovery.PublishedAt)</dd>
+                        <dt class="col-sm-3">Data powstania projektu</dt><dd class="col-sm-9">@UiLabels.Data(discovery.EarliestKnownDate)</dd>
+                        <dt class="col-sm-3">Ostatnia aktywność</dt><dd class="col-sm-9">@UiLabels.Data(discovery.LastActivityAt)</dd>
+                        <dt class="col-sm-3">Data odkrycia</dt><dd class="col-sm-9">@UiLabels.DataCzas(discovery.DiscoveredAt)</dd>
+                    </dl>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(discovery.RawContent))
+            {
+                <div class="card dashboard-card mb-3">
+                    <div class="card-header dashboard-card-header">
+                        Fragment treści źródłowej
+                        @if (discovery.IsContentTruncated) { <span class="small text-muted">· skrócony (@discovery.ContentLength znaków w oryginale)</span> }
+                    </div>
+                    <div class="card-body"><pre class="small text-wrap">@discovery.RawContent</pre></div>
+                </div>
+            }
+
+            <div class="card dashboard-card">
+                <div class="card-header dashboard-card-header">Analiza AI</div>
+                <div class="card-body">
+                    @if (discovery.AIProcessed)
+                    {
+                        <div class="d-flex gap-2 mb-2">
+                            <span class="badge bg-info text-dark">Potencjalna innowacja: @(discovery.IsPotentialInnovation ? "tak" : "nie")</span>
+                            <span class="badge bg-primary">Pewność: @(discovery.AIConfidence?.ToString() ?? "brak")%</span>
+                            <span class="badge @BadgeStatus(discovery.Status)">@UiLabels.Status(discovery.Status)</span>
+                        </div>
+                        <p class="mb-1">@(discovery.AIAnalysis ?? "Brak uzasadnienia.")</p>
+                        <p class="small text-muted mb-0">Wynik AI nie jest potwierdzeniem innowacyjności – wymaga weryfikacji człowieka.</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Materiał nie został jeszcze przeanalizowany. Status: @UiLabels.Processing(discovery.ProcessingStatus).</p>
+                    }
+
+                    @if (model.AiHistory.Count > 0)
+                    {
+                        <hr />
+                        <h2 class="h6">Historia analiz</h2>
+                        <table class="table table-sm">
+                            <thead><tr><th>Model</th><th>Data</th><th>Pewność</th><th>Wersja promptu</th></tr></thead>
+                            <tbody>
+                                @foreach (var record in model.AiHistory)
+                                {
+                                    <tr>
+                                        <td>@record.Model</td>
+                                        <td>@UiLabels.DataCzas(record.AnalyzedAt)</td>
+                                        <td>@record.Confidence%</td>
+                                        <td>@record.PromptVersion</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card dashboard-card mb-3">
+                <div class="card-header dashboard-card-header">Technologie i kategorie</div>
+                <div class="card-body">
+                    @foreach (var technology in discovery.Technologies.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        <span class="badge bg-light text-dark border me-1 mb-1">@technology.Trim('[', ']', '"')</span>
+                    }
+                    <hr />
+                    @if (model.Categories.Count == 0)
+                    {
+                        <span class="text-muted small">Brak przypisanych kategorii.</span>
+                    }
+                    else
+                    {
+                        @foreach (var category in model.Categories)
+                        {
+                            <span class="badge bg-primary me-1 mb-1">@category</span>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="card dashboard-card">
+                <div class="card-header dashboard-card-header">Podobne odkrycia</div>
+                <div class="card-body">
+                    @if (model.SimilarDiscoveries.Count == 0)
+                    {
+                        <span class="text-muted small">Brak podobnych odkryć w tej kategorii.</span>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled mb-0 small">
+                            @foreach (var similar in model.SimilarDiscoveries)
+                            {
+                                <li class="mb-2">
+                                    <a href="/odkrycia/@similar.Id">@similar.Title</a>
+                                    <div class="text-muted">@similar.SourceName · @UiLabels.Data(similar.DiscoveredAt)</div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private DiscoveryDetailsModel? model;
+    private string komunikat = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        model = await DiscoveryService.GetDetailsAsync(Id);
+    }
+
+    private async Task ZatwierdzAsync()
+    {
+        await DiscoveryService.MarkVerifiedAsync(Id);
+        komunikat = "Odkrycie zostało oznaczone jako zweryfikowane.";
+        model = await DiscoveryService.GetDetailsAsync(Id);
+    }
+
+    private static string BadgeStatus(DiscoveryStatus value) => value switch
+    {
+        DiscoveryStatus.Verified => "bg-success",
+        DiscoveryStatus.Interesting => "bg-primary",
+        _ => "bg-secondary"
+    };
+}

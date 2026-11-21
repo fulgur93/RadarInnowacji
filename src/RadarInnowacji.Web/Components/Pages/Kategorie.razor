@@ -1,0 +1,59 @@
+@page "/kategorie"
+@rendermode InteractiveServer
+@inject ICategoryService CategoryService
+
+<PageTitle>Kategorie i trendy — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Kategorie i trendy</h1>
+        <p class="page-subtitle">Grupy tematyczne przypisane do projektów innowacyjnych.</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-7">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Kategorie (@kategorie.Count)</div>
+            <div class="card-body">
+                @if (kategorie.Count == 0)
+                {
+                    <div class="empty-panel">Brak kategorii. Kategorie zostaną wykryte na podstawie podobieństwa projektów.</div>
+                }
+                else
+                {
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th>Nazwa</th><th>Projekty</th></tr></thead>
+                        <tbody>
+                            @foreach (var category in kategorie)
+                            {
+                                <tr>
+                                    <td>@category.Name</td>
+                                    <td><span class="badge bg-primary">@category.Count</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-5">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Trendy</div>
+            <div class="card-body empty-panel">
+                Analiza zmian liczby projektów w kategoriach oraz wykresy trendów zostaną dodane
+                w Etapie 7 (wspólny radar i trendy).
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<CategoryCount> kategorie = Array.Empty<CategoryCount>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        kategorie = await CategoryService.GetAllWithCountsAsync();
+    }
+}

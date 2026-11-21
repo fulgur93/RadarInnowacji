@@ -1,0 +1,135 @@
+using Microsoft.EntityFrameworkCore;
+using RadarInnowacji.Core.Entities;
+using RadarInnowacji.Core.Models;
+
+namespace RadarInnowacji.Infrastructure.Database;
+
+/// <summary>
+/// Kontekst danych Radar Innowacji. Dostawca jest wybierany w rejestracji DI,
+/// co umożliwi przejście z SQLite na PostgreSQL bez zmiany encji.
+/// </summary>
+public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : DbContext(options)
+{
+    public DbSet<Source> Sources => Set<Source>();
+    public DbSet<Discovery> Discoveries => Set<Discovery>();
+    public DbSet<InnovationProject> InnovationProjects => Set<InnovationProject>();
+    public DbSet<DiscoveryProject> DiscoveryProjects => Set<DiscoveryProject>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<ProjectCategory> ProjectCategories => Set<ProjectCategory>();
+    public DbSet<ScanHistory> ScanHistory => Set<ScanHistory>();
+    public DbSet<AiAnalysisRecord> AiAnalyses => Set<AiAnalysisRecord>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Source>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Url).IsRequired().HasMaxLength(ContentLimits.MaxSourceUrlLength);
+            entity.Property(x => x.Configuration).HasDefaultValue("{}");
+            entity.Property(x => x.LastError).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => new { x.Radar, x.IsActive });
+        });
+
+        modelBuilder.Entity<Discovery>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Description).HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.Property(x => x.RawContent).HasMaxLength(ContentLimits.MaxRawContentLength);
+            entity.Property(x => x.SourceUrl).IsRequired().HasMaxLength(ContentLimits.MaxSourceUrlLength);
+            entity.Property(x => x.AIAnalysis).HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.Property(x => x.ContentHash).HasMaxLength(128);
+
+            entity.HasOne(x => x.Source)
+                .WithMany(x => x.Discoveries)
+                .HasForeignKey(x => x.SourceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => new { x.SourceId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => x.ContentHash);
+            entity.HasIndex(x => x.DiscoveredAt);
+            entity.HasIndex(x => x.PublishedAt);
+            entity.HasIndex(x => x.LastActivityAt);
+            entity.HasIndex(x => x.ProcessingStatus);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.IsPotentialInnovation);
+        });
+
+        modelBuilder.Entity<InnovationProject>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Description).HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.HasIndex(x => x.FreshnessScore);
+            entity.HasIndex(x => x.FirstDiscoveredAt);
+        });
+
+        modelBuilder.Entity<DiscoveryProject>(entity =>
+        {
+            entity.HasKey(x => new { x.DiscoveryId, x.InnovationProjectId });
+            entity.HasOne(x => x.Discovery)
+                .WithMany(x => x.ProjectLinks)
+                .HasForeignKey(x => x.DiscoveryId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Project)
+                .WithMany(x => x.DiscoveryLinks)
+                .HasForeignKey(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.InnovationProjectId);
+        });
+
+        modelBuilder.Entity<Category>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => x.ParentCategoryId);
+            entity.HasOne(x => x.Parent)
+                .WithMany(x => x.Children)
+                .HasForeignKey(x => x.ParentCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProjectCategory>(entity =>
+        {
+            entity.HasKey(x => new { x.InnovationProjectId, x.CategoryId });
+            entity.HasOne(x => x.Project)
+                .WithMany(x => x.CategoryLinks)
+                .HasForeignKey(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Category)
+                .WithMany(x => x.ProjectLinks)
+                .HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.CategoryId);
+        });
+
+        modelBuilder.Entity<ScanHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ErrorMessage).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.HasOne(x => x.Source)
+                .WithMany(x => x.Scans)
+                .HasForeignKey(x => x.SourceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.SourceId, x.StartedAt });
+        });
+
+        modelBuilder.Entity<AiAnalysisRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Model).HasMaxLength(200);
+            entity.Property(x => x.Reason).HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.Property(x => x.ResultJson).HasMaxLength(ContentLimits.MaxRawContentLength);
+            entity.HasOne(x => x.Discovery)
+                .WithMany(x => x.AiAnalyses)
+                .HasForeignKey(x => x.DiscoveryId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.DiscoveryId, x.AnalyzedAt });
+        });
+    }
+}

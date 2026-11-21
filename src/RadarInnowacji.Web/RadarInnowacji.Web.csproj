@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\RadarInnowacji.Core\RadarInnowacji.Core.csproj" />
+    <ProjectReference Include="..\RadarInnowacji.Infrastructure\RadarInnowacji.Infrastructure.csproj" />
+    <ProjectReference Include="..\RadarInnowacji.Worker\RadarInnowacji.Worker.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+</Project>

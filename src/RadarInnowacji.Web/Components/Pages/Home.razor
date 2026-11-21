@@ -1,0 +1,218 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject IDashboardService DashboardService
+@inject IDemoDataService DemoService
+
+<PageTitle>Dashboard — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="page-subtitle">Przegląd zebranych materiałów oraz stanu systemu.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="OdswiezAsync">Odśwież</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(komunikat))
+{
+    <div class="alert alert-info alert-dismissible py-2 small" role="alert">
+        @komunikat
+        <button type="button" class="btn-close" @onclick="() => komunikat = string.Empty" aria-label="Zamknij"></button>
+    </div>
+}
+
+@if (podsumowanie.DemoCount > 0)
+{
+    <div class="alert alert-warning py-2 small" role="alert">
+        <strong>Dane demonstracyjne:</strong> @podsumowanie.DemoCount przykładowych odkryć.
+        Nie są to rzeczywiste wyniki skanowania.
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-6 col-lg-4 col-xl-2">
+        <div class="card kpi-card"><div class="card-body">
+            <span class="kpi-label">Wszystkie odkrycia</span>
+            <span class="kpi-value">@podsumowanie.TotalDiscoveries</span>
+            <span class="kpi-note">materiały źródłowe</span>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-4 col-xl-2">
+        <div class="card kpi-card"><div class="card-body">
+            <span class="kpi-label">Potencjalne innowacje</span>
+            <span class="kpi-value">@podsumowanie.PotentialInnovations</span>
+            <span class="kpi-note">@podsumowanie.InterestingCount interesujące · @podsumowanie.VerifiedCount zweryfikowane</span>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-4 col-xl-2">
+        <div class="card kpi-card"><div class="card-body">
+            <span class="kpi-label">Nowe odkrycia (7 dni)</span>
+            <span class="kpi-value">@podsumowanie.NewLast7Days</span>
+            <span class="kpi-note">wg daty odkrycia</span>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-4 col-xl-2">
+        <div class="card kpi-card"><div class="card-body">
+            <span class="kpi-label">Aktywne źródła</span>
+            <span class="kpi-value">@podsumowanie.ActiveSources</span>
+            <span class="kpi-note">z wszystkich skonfigurowanych</span>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-4 col-xl-2">
+        <div class="card kpi-card"><div class="card-body">
+            <span class="kpi-label">Kategorie</span>
+            <span class="kpi-value">@podsumowanie.CategoryCount</span>
+            <span class="kpi-note">tematy projektów</span>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-4 col-xl-2">
+        <div class="card kpi-card"><div class="card-body">
+            <span class="kpi-label">Silnik AI</span>
+            <span class="kpi-value kpi-value-text">Opcjonalny</span>
+            <span class="kpi-note">@podsumowanie.AiProcessedCount przeanalizowane · @podsumowanie.AiPendingCount oczekuje</span>
+        </div></div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-12 col-xl-8">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Aktywność odkryć w czasie (ostatnie 30 dni z danymi)</div>
+            <div class="card-body">
+                @{
+                    var punkty = podsumowanie.Activity.ToList();
+                    var maksimum = punkty.Count == 0 ? 1 : punkty.Max(x => x.Count);
+                    var krok = punkty.Count == 0 ? 0 : 600.0 / punkty.Count;
+                }
+                <svg class="activity-chart" viewBox="0 0 640 180" role="img" aria-label="Wykres aktywności odkryć">
+                    @for (var i = 0; i <= 4; i++)
+                    {
+                        <line x1="30" y1="@(30 + i * 30)" x2="625" y2="@(30 + i * 30)" class="chart-grid-line" />
+                    }
+                    @for (var i = 0; i < punkty.Count; i++)
+                    {
+                        var wysokosc = punkty[i].Count * 120.0 / maksimum;
+                        <rect x="@(31 + i * krok)" y="@(150 - wysokosc)" width="@(Math.Max(2, krok - 2))"
+                              height="@wysokosc" fill="#2f6fed" opacity="0.85">
+                            <title>@punkty[i].Date: @punkty[i].Count</title>
+                        </rect>
+                    }
+                </svg>
+                @if (punkty.Count == 0)
+                {
+                    <p class="chart-empty-label-html">Brak danych do wyświetlenia</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-4">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Status systemu</div>
+            <div class="card-body">
+                <div class="status-row"><span>Analiza AI</span><span class="status-pill status-pill-muted">@podsumowanie.AiProcessedCount / @podsumowanie.TotalDiscoveries</span></div>
+                <div class="status-row"><span>Skanowanie źródeł</span><span class="status-pill status-pill-muted">@podsumowanie.ActiveSources aktywnych</span></div>
+                <div class="status-row"><span>Baza danych</span><span class="status-pill status-pill-ok">Gotowa</span></div>
+                @foreach (var radar in podsumowanie.RadarCounts.OrderBy(x => x.Radar))
+                {
+                    <div class="status-row"><span>@UiLabels.Radar(radar.Radar)</span><span class="small fw-semibold">@radar.Count</span></div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-12 col-xl-8">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header d-flex justify-content-between">
+                <span>Najnowsze odkrycia</span>
+                <a href="/odkrycia" class="small">Wszystkie odkrycia →</a>
+            </div>
+            <div class="card-body table-responsive">
+                @if (podsumowanie.LatestDiscoveries.Count == 0)
+                {
+                    <div class="empty-panel">Brak odkryć. Załaduj dane demonstracyjne lub zeskanuj źródła w kolejnych etapach.</div>
+                }
+                else
+                {
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th>Tytuł</th><th>Radar</th><th>Data odkrycia</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach (var item in podsumowanie.LatestDiscoveries)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="/odkrycia/@item.Id">@item.Title</a>
+                                        @if (item.IsDemo) { <span class="badge badge-demo">DEMO</span> }
+                                    </td>
+                                    <td><span class="small">@UiLabels.Radar(item.Radar)</span></td>
+                                    <td><span class="small">@UiLabels.Data(item.DiscoveredAt)</span></td>
+                                    <td><span class="badge bg-secondary">@UiLabels.Status(item.Status)</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-4">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header d-flex justify-content-between">
+                <span>Najpopularniejsze kategorie</span>
+                <a href="/kategorie" class="small">Wszystkie →</a>
+            </div>
+            <div class="card-body">
+                @if (podsumowanie.TopCategories.Count == 0)
+                {
+                    <div class="empty-panel">Brak kategorii.</div>
+                }
+                else
+                {
+                    @foreach (var category in podsumowanie.TopCategories)
+                    {
+                        <div class="status-row">
+                            <span>@category.Name</span>
+                            <span class="badge bg-primary">@category.Count</span>
+                        </div>
+                    }
+                }
+                <hr />
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="LoadDemoAsync">Załaduj dane demonstracyjne</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" disabled="@(podsumowanie.DemoCount == 0)" @onclick="ClearDemoAsync">Usuń dane demonstracyjne</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private DashboardSummary podsumowanie = new();
+    private string komunikat = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await OdswiezAsync();
+
+    private async Task OdswiezAsync()
+    {
+        podsumowanie = await DashboardService.GetSummaryAsync();
+    }
+
+    private async Task LoadDemoAsync()
+    {
+        var loaded = await DemoService.LoadAsync();
+        komunikat = loaded > 0
+            ? $"Załadowano {loaded} przykładowych odkryć. Są one oznaczone jako DEMO."
+            : "Dane demonstracyjne są już załadowane.";
+        await OdswiezAsync();
+    }
+
+    private async Task ClearDemoAsync()
+    {
+        var removed = await DemoService.ClearAsync();
+        komunikat = $"Usunięto {removed} przykładowych źródeł wraz z powiązanymi danymi.";
+        await OdswiezAsync();
+    }
+}

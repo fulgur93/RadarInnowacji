@@ -1,0 +1,31 @@
+﻿@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <aside class="app-sidebar">
+        <div class="sidebar-brand">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <div>
+                <strong>RADAR INNOWACJI</strong>
+                <small>System wykrywania innowacji</small>
+            </div>
+        </div>
+        <NavMenu />
+        <div class="sidebar-footer">Etap 1 · Interfejs i baza danych</div>
+    </aside>
+
+    <div class="app-main">
+        <header class="app-topbar">
+            <span class="topbar-title">Panel analityczny</span>
+            <span class="topbar-badge">Dane demonstracyjne można załadować jednym kliknięciem</span>
+        </header>
+        <main class="app-content">
+            @Body
+        </main>
+    </div>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Wystąpił nieoczekiwany błąd.
+    <a href="." class="reload">Odśwież</a>
+    <span class="dismiss" aria-hidden="true">×</span>
+</div>

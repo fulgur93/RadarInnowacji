@@ -1,0 +1,332 @@
+@rendermode InteractiveServer
+@inject IDiscoveryService DiscoveryService
+@inject ISourceService SourceService
+@inject ICategoryService CategoryService
+
+<div class="page-header">
+    <div>
+        <h1>@Tytul</h1>
+        <p class="page-subtitle">@Opis</p>
+    </div>
+    <span class="topbar-badge d-none d-md-inline">@UiLabels.Radar(Radar ?? RadarKind.Uczelnia)</span>
+</div>
+
+<div class="card dashboard-card mb-3">
+    <div class="card-header dashboard-card-header">Filtry wyszukiwania</div>
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <label class="form-label form-label-sm">Szukaj w tytułach i opisach</label>
+                <input class="form-control form-control-sm" @bind="szukanaFraza" placeholder="np. czujniki" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Pole daty</label>
+                <select class="form-select form-select-sm" @bind="poleDaty">
+                    <option value="@DateField.DiscoveredAt">Data odkrycia</option>
+                    <option value="@DateField.PublishedAt">Data publikacji</option>
+                    <option value="@DateField.EarliestKnownDate">Data powstania</option>
+                    <option value="@DateField.LastActivityAt">Ostatnia aktywność</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Zakres dat</label>
+                <select class="form-select form-select-sm" @bind="zakresDni">
+                    <option value="7">Ostatnie 7 dni</option>
+                    <option value="30">Ostatnie 30 dni</option>
+                    <option value="90">Ostatnie 90 dni</option>
+                    <option value="180">Ostatnie 6 miesięcy</option>
+                    <option value="365">Ostatni rok</option>
+                    <option value="730">Ostatnie 2 lata</option>
+                    <option value="0">Wszystkie</option>
+                    <option value="-1">Własny zakres</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Kategoria</label>
+                <select class="form-select form-select-sm" @bind="kategoria">
+                    <option value="">Wszystkie</option>
+                    @foreach (var category in kategorie)
+                    {
+                        <option value="@category.CategoryId">@category.Name (@category.Count)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Źródło</label>
+                <select class="form-select form-select-sm" @bind="zrodlo">
+                    <option value="">Wszystkie</option>
+                    @foreach (var source in zrodla)
+                    {
+                        <option value="@source.Id">@source.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (zakresDni == -1)
+        {
+            <div class="row g-2 mt-1">
+                <div class="col-md-2">
+                    <label class="form-label form-label-sm">Od</label>
+                    <input type="date" class="form-control form-control-sm" @bind="dataOd" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label form-label-sm">Do</label>
+                    <input type="date" class="form-control form-control-sm" @bind="dataDo" />
+                </div>
+            </div>
+        }
+
+        <div class="row g-2 mt-1">
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Status odkrycia</label>
+                <select class="form-select form-select-sm" @bind="status">
+                    <option value="">Wszystkie</option>
+                    <option value="@DiscoveryStatus.Candidate">Kandydat</option>
+                    <option value="@DiscoveryStatus.Interesting">Interesujące</option>
+                    <option value="@DiscoveryStatus.Verified">Zweryfikowane</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Analiza AI</label>
+                <select class="form-select form-select-sm" @bind="analizaAi">
+                    <option value="">Wszystkie</option>
+                    <option value="@ProcessingStatus.Pending">Oczekuje na AI</option>
+                    <option value="@ProcessingStatus.AiQueued">W kolejce AI</option>
+                    <option value="@ProcessingStatus.AiProcessed">Przeanalizowane</option>
+                    <option value="@ProcessingStatus.AiFailed">Błąd AI</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Sortowanie</label>
+                <select class="form-select form-select-sm" @bind="sortowanie">
+                    <option value="@DiscoverySort.DiscoveredAt">Data odkrycia</option>
+                    <option value="@DiscoverySort.PublishedAt">Data publikacji</option>
+                    <option value="@DiscoverySort.Title">Tytuł</option>
+                    <option value="@DiscoverySort.AIConfidence">Pewność AI</option>
+                    <option value="@DiscoverySort.Source">Źródło</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Kierunek</label>
+                <select class="form-select form-select-sm" @bind="malejaco">
+                    <option value="true">Malejąco</option>
+                    <option value="false">Rosnąco</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end gap-2">
+                <div class="form-check mb-1">
+                    <input class="form-check-input" type="checkbox" @bind="tylkoPotencjalne" id="tylkoPotencjalne" />
+                    <label class="form-check-label form-label-sm" for="tylkoPotencjalne">Tylko potencjalne innowacje</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3 d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-sm btn-primary" @onclick="SzukajAsync">Szukaj</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="WyczyśćAsync">Wyczyść filtry</button>
+            @if (Radar is not null)
+            {
+                <span class="align-self-center text-muted small">Skanowanie źródeł zostanie dodane w kolejnym etapie.</span>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card dashboard-card">
+    <div class="card-header dashboard-card-header d-flex justify-content-between">
+        <span>Wyniki: @wyniki.TotalCount</span>
+        <span>Strona @wyniki.PageNumber z @wyniki.PageCount</span>
+    </div>
+    <div class="card-body table-responsive">
+        @if (wyniki.Items.Count == 0)
+        {
+            <div class="empty-panel">Brak odkryć spełniających kryteria. Spróbuj zmienić zakres dat lub załaduj dane demonstracyjne.</div>
+        }
+        else
+        {
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Tytuł</th>
+                        <th>Źródło</th>
+                        <th>Publikacja</th>
+                        <th>Odkrycie</th>
+                        <th>Status</th>
+                        <th>AI</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in wyniki.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/odkrycia/@item.Id" class="fw-semibold">@item.Title</a>
+                                @if (item.IsDemo)
+                                {
+                                    <span class="badge badge-demo">DEMO</span>
+                                }
+                                <div class="small text-muted">@UiLabels.Radar(item.Radar) · @string.Join(", ", item.Categories.Take(2))</div>
+                            </td>
+                            <td><span class="small">@item.SourceName</span></td>
+                            <td><span class="small">@UiLabels.Data(item.PublishedAt)</span></td>
+                            <td><span class="small">@UiLabels.Data(item.DiscoveredAt)</span></td>
+                            <td><span class="badge @BadgeStatus(item.Status)">@UiLabels.Status(item.Status)</span></td>
+                            <td>
+                                @if (item.IsPotentialInnovation)
+                                {
+                                    <span class="badge bg-info text-dark">@(item.AIConfidence?.ToString() ?? "?")%</span>
+                                }
+                                else
+                                {
+                                    <span class="small text-muted">@UiLabels.Processing(item.ProcessingStatus)</span>
+                                }
+                            </td>
+                            <td>
+                                <a class="btn btn-sm btn-outline-primary" href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">Otwórz</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(wyniki.PageNumber <= 1)" @onclick="PoprzedniaAsync">Poprzednia</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(wyniki.PageNumber >= wyniki.PageCount)" @onclick="NastepnaAsync">Następna</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Tytul { get; set; } = "Odkrycia";
+    [Parameter] public string Opis { get; set; } = "Lista wszystkich znalezionych materiałów.";
+    [Parameter] public RadarKind? Radar { get; set; }
+
+    private string szukanaFraza = string.Empty;
+    private DateField poleDaty = DateField.DiscoveredAt;
+    private int zakresDni = 30;
+    private DateTime? dataOd;
+    private DateTime? dataDo;
+    private string kategoria = string.Empty;
+    private string zrodlo = string.Empty;
+    private string status = string.Empty;
+    private string analizaAi = string.Empty;
+    private DiscoverySort sortowanie = DiscoverySort.DiscoveredAt;
+    private bool malejaco = true;
+    private bool tylkoPotencjalne;
+
+    private DiscoveryPage wyniki = new();
+    private IReadOnlyList<Source> zrodla = Array.Empty<Source>();
+    private IReadOnlyList<CategoryCount> kategorie = Array.Empty<CategoryCount>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        zrodla = (await SourceService.GetAllAsync())
+            .Where(x => Radar is null || x.Radar == Radar.Value)
+            .ToList();
+        kategorie = await CategoryService.GetAllWithCountsAsync();
+        await SzukajAsync();
+    }
+
+    private async Task SzukajAsync()
+    {
+        var filter = new DiscoveryFilter
+        {
+            Radar = Radar,
+            SearchText = szukanaFraza,
+            DateField = poleDaty,
+            SortBy = sortowanie,
+            SortDescending = malejaco,
+            PageNumber = 1,
+            PageSize = 20
+        };
+
+        if (zakresDni == -1)
+        {
+            filter.DateFrom = dataOd;
+            filter.DateTo = dataDo;
+        }
+        else if (zakresDni > 0)
+        {
+            filter.DateFrom = DateTime.UtcNow.AddDays(-zakresDni);
+        }
+
+        if (int.TryParse(kategoria, out var categoryId)) filter.CategoryId = categoryId;
+        if (int.TryParse(zrodlo, out var sourceId)) filter.SourceId = sourceId;
+        if (Enum.TryParse<ProcessingStatus>(analizaAi, out var processing)) filter.ProcessingStatus = processing;
+        if (Enum.TryParse<DiscoveryStatus>(status, out var discoveryStatus)) filter.Status = discoveryStatus;
+        if (tylkoPotencjalne) filter.IsPotentialInnovation = true;
+
+        wyniki = await DiscoveryService.GetPageAsync(filter);
+    }
+
+    private async Task WyczyśćAsync()
+    {
+        szukanaFraza = string.Empty;
+        poleDaty = DateField.DiscoveredAt;
+        zakresDni = 30;
+        dataOd = null;
+        dataDo = null;
+        kategoria = string.Empty;
+        zrodlo = string.Empty;
+        status = string.Empty;
+        analizaAi = string.Empty;
+        sortowanie = DiscoverySort.DiscoveredAt;
+        malejaco = true;
+        tylkoPotencjalne = false;
+        await SzukajAsync();
+    }
+
+    private async Task PoprzedniaAsync()
+    {
+        if (wyniki.PageNumber <= 1) return;
+        await ZmienStroneAsync(wyniki.PageNumber - 1);
+    }
+
+    private async Task NastepnaAsync()
+    {
+        if (wyniki.PageNumber >= wyniki.PageCount) return;
+        await ZmienStroneAsync(wyniki.PageNumber + 1);
+    }
+
+    private async Task ZmienStroneAsync(int strona)
+    {
+        var filter = new DiscoveryFilter
+        {
+            Radar = Radar,
+            SearchText = szukanaFraza,
+            DateField = poleDaty,
+            SortBy = sortowanie,
+            SortDescending = malejaco,
+            PageNumber = strona,
+            PageSize = 20
+        };
+
+        if (zakresDni == -1)
+        {
+            filter.DateFrom = dataOd;
+            filter.DateTo = dataDo;
+        }
+        else if (zakresDni > 0)
+        {
+            filter.DateFrom = DateTime.UtcNow.AddDays(-zakresDni);
+        }
+
+        if (int.TryParse(kategoria, out var categoryId)) filter.CategoryId = categoryId;
+        if (int.TryParse(zrodlo, out var sourceId)) filter.SourceId = sourceId;
+        if (Enum.TryParse<ProcessingStatus>(analizaAi, out var processing)) filter.ProcessingStatus = processing;
+        if (Enum.TryParse<DiscoveryStatus>(status, out var discoveryStatus)) filter.Status = discoveryStatus;
+        if (tylkoPotencjalne) filter.IsPotentialInnovation = true;
+
+        wyniki = await DiscoveryService.GetPageAsync(filter);
+    }
+
+    private static string BadgeStatus(DiscoveryStatus value) => value switch
+    {
+        DiscoveryStatus.Verified => "bg-success",
+        DiscoveryStatus.Interesting => "bg-primary",
+        _ => "bg-secondary"
+    };
+}

@@ -1,0 +1,69 @@
+@page "/historia"
+@rendermode InteractiveServer
+@inject IScanHistoryService ScanHistoryService
+
+<PageTitle>Historia skanowania — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Historia skanowania</h1>
+        <p class="page-subtitle">Rejestr przebiegu pobierania danych ze źródeł.</p>
+    </div>
+</div>
+
+<div class="card dashboard-card">
+    <div class="card-header dashboard-card-header">Ostatnie skany (@skany.Count)</div>
+    <div class="card-body table-responsive">
+        @if (skany.Count == 0)
+        {
+            <div class="empty-panel">Brak zapisanych skanów.</div>
+        }
+        else
+        {
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr><th>Źródło</th><th>Radar</th><th>Rozpoczęcie</th><th>Zakończenie</th>
+                        <th>Status</th><th>Znaleziono</th><th>Nowe</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var scan in skany)
+                    {
+                        <tr>
+                            <td>
+                                @scan.SourceName
+                                @if (scan.IsDemo) { <span class="badge badge-demo">DEMO</span> }
+                                @if (!string.IsNullOrEmpty(scan.ErrorMessage))
+                                {
+                                    <div class="small text-danger">@scan.ErrorMessage</div>
+                                }
+                            </td>
+                            <td><span class="small">@UiLabels.Radar(scan.Radar)</span></td>
+                            <td><span class="small">@UiLabels.DataCzas(scan.StartedAt)</span></td>
+                            <td><span class="small">@UiLabels.DataCzas(scan.FinishedAt)</span></td>
+                            <td><span class="badge @BadgeScan(scan.Status)">@UiLabels.Scan(scan.Status)</span></td>
+                            <td>@scan.ItemsFound</td>
+                            <td>@scan.ItemsNew</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<ScanHistoryItem> skany = Array.Empty<ScanHistoryItem>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        skany = await ScanHistoryService.GetRecentAsync();
+    }
+
+    private static string BadgeScan(ScanStatus status) => status switch
+    {
+        ScanStatus.Succeeded => "bg-success",
+        ScanStatus.Failed => "bg-danger",
+        ScanStatus.Partial => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+}

@@ -1,0 +1,33 @@
+@page "/ustawienia"
+@rendermode InteractiveServer
+@inject IOptions<RadarOptions> Options
+
+<PageTitle>Ustawienia — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Ustawienia</h1>
+        <p class="page-subtitle">Parametry uruchomienia aplikacji.</p>
+    </div>
+</div>
+
+<div class="card dashboard-card">
+    <div class="card-header dashboard-card-header">Konfiguracja lokalna</div>
+    <div class="card-body">
+        <dl class="row mb-0 small">
+            <dt class="col-sm-4">Port nasłuchiwania</dt><dd class="col-sm-8">@Options.Value.Port (tylko 127.0.0.1)</dd>
+            <dt class="col-sm-4">Otwieranie przeglądarki</dt><dd class="col-sm-8">@(Options.Value.OpenBrowser ? "Włączone" : "Wyłączone")</dd>
+            <dt class="col-sm-4">Blokada drugiej instancji</dt><dd class="col-sm-8">@(Options.Value.SingleInstance ? "Włączona" : "Wyłączona")</dd>
+            <dt class="col-sm-4">Baza danych</dt><dd class="col-sm-8"><code>@Options.Value.EffectiveDatabasePath</code></dd>
+            <dt class="col-sm-4">Logi</dt><dd class="col-sm-8"><code>@Options.Value.EffectiveLogDirectory</code></dd>
+        </dl>
+        <hr />
+        <p class="small text-muted mb-0">
+            Ustawienia znajdują się w pliku <code>appsettings.json</code> oraz w zmiennych środowiskowych
+            <code>RADAR_*</code>. Dane użytkownika są przechowywane poza katalogiem instalacyjnym.
+        </p>
+    </div>
+</div>
+
+@code {
+}
