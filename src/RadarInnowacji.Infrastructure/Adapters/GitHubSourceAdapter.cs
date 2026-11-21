@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using RadarInnowacji.Core.Entities;
 using RadarInnowacji.Core.Enums;
 using RadarInnowacji.Infrastructure.Configuration;
 using RadarInnowacji.Core.Models;
@@ -202,7 +203,57 @@ public sealed class GitHubSourceAdapter(
             AdapterHelpers.ParseDate(AdapterHelpers.ReadString(item, "pushed_at", "updated_at")),
             owner,
             "GitHub",
-            technologies.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+            technologies.Distinct(StringComparer.OrdinalIgnoreCase).ToList()) with
+        {
+            Repository = new RepositoryMetadata(
+                "GitHub",
+                title,
+                title,
+                AdapterHelpers.ReadInt(item, "stargazers_count") ?? 0,
+                AdapterHelpers.ReadInt(item, "forks_count") ?? 0,
+                AdapterHelpers.ReadInt(item, "open_issues_count"),
+                ReadLicense(item),
+                AdapterHelpers.ReadString(item, "homepage"),
+                AdapterHelpers.ReadString(item, "default_branch"),
+                null,
+                AdapterHelpers.ReadBool(item, "fork"),
+                AdapterHelpers.ReadBool(item, "archived"))
+        };
+    }
+
+    /// <summary>GET /repos/{owner}/{repo}/readme (surowa treść) i /languages (bajty → udział procentowy).</summary>
+    protected override async Task<RepositoryDetails> FetchDetailsCoreAsync(
+        RepositoryApiClient client,
+        string apiBase,
+        RepositoryInfo repository,
+        CancellationToken cancellationToken)
+    {
+        var path = string.Join('/', repository.ProjectId.Split('/').Select(Uri.EscapeDataString));
+        var readme = await client.TryGetTextAsync(
+            $"{apiBase}/repos/{path}/readme", "application/vnd.github.raw+json", MaxReadmeChars, cancellationToken);
+        var languages = await client.TryGetAsync($"{apiBase}/repos/{path}/languages", cancellationToken);
+
+        return new RepositoryDetails(
+            readme,
+            languages is null ? new Dictionary<string, double>() : ToShares(AdapterHelpers.ReadNumberMap(languages.Root)),
+            null,
+            null);
+    }
+
+    private static string? ReadLicense(JsonElement item)
+    {
+        if (item.ValueKind != JsonValueKind.Object ||
+            !item.TryGetProperty("license", out var license) ||
+            license.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var spdx = AdapterHelpers.ReadString(license, "spdx_id");
+        // GitHub zwraca NOASSERTION, gdy plik licencji istnieje, ale nie został rozpoznany.
+        return string.IsNullOrWhiteSpace(spdx) || spdx == "NOASSERTION"
+            ? AdapterHelpers.ReadString(license, "name")
+            : spdx;
     }
 
     private static string? ReadIdentifier(JsonElement item)

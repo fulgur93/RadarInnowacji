@@ -68,9 +68,11 @@ public sealed class ScanService(
                 foreach (var item in limited)
                 {
                     var hash = ComputeHash(source.Id, item);
-                    var existing = await db.Discoveries.FirstOrDefaultAsync(
-                        x => x.SourceId == source.Id && x.ExternalId == item.ExternalId,
-                        cancellationToken);
+                    var existing = await db.Discoveries
+                        .Include(x => x.Repository)
+                        .FirstOrDefaultAsync(
+                            x => x.SourceId == source.Id && x.ExternalId == item.ExternalId,
+                            cancellationToken);
 
                     if (existing is null)
                     {
@@ -79,7 +81,7 @@ public sealed class ScanService(
                     }
                     else
                     {
-                        UpdateDiscovery(existing, item, hash);
+                        UpdateDiscovery(existing, item, hash, startedAt);
                     }
                 }
 
@@ -89,15 +91,18 @@ public sealed class ScanService(
                     source.Configuration = SourceConfiguration.WithCursors(source.Configuration, fetched.Cursors);
                 }
 
+                await db.SaveChangesAsync(cancellationToken);
+                var detailsNote = await EnrichRepositoriesAsync(source, adapter, cancellationToken);
+
                 var status = fetched.IsComplete ? ScanStatus.Succeeded : ScanStatus.Partial;
-                var warning = fetched.Warning is null
-                    ? null
-                    : fetched.Warning[..Math.Min(fetched.Warning.Length, ContentLimits.MaxErrorLength)];
+                var scanWarning = Limit(fetched.Warning);
+                var warning = Limit(string.Join(" ", new[] { fetched.Warning, detailsNote }.Where(x => x is not null)));
+                warning = string.IsNullOrEmpty(warning) ? null : warning;
 
                 var finishedAt = DateTime.UtcNow;
                 source.LastScanDate = finishedAt;
                 source.LastSuccessfulScan = finishedAt;
-                source.LastError = fetched.IsComplete ? null : warning;
+                source.LastError = fetched.IsComplete ? null : scanWarning;
                 history.Status = status;
                 history.ItemsFound = limited.Count;
                 history.ItemsNew = added;
@@ -171,8 +176,74 @@ public sealed class ScanService(
         return results;
     }
 
+    /// <summary>
+    /// Dociąga README i języki dla projektów tego źródła, które ich jeszcze nie mają (najnowsze najpierw),
+    /// w ramach <see cref="RepositoryOptions.MaxDetailsPerScan"/>. Błąd tego kroku nie psuje skanu.
+    /// </summary>
+    private async Task<string?> EnrichRepositoriesAsync(
+        Source source,
+        ISourceAdapter adapter,
+        CancellationToken cancellationToken)
+    {
+        if (adapter is not IRepositoryDetailsAdapter detailsAdapter)
+        {
+            return null;
+        }
+
+        var limit = Math.Clamp(options.Value.Repositories.MaxDetailsPerScan, 0, 500);
+        if (limit == 0)
+        {
+            return null;
+        }
+
+        var pending = await db.Repositories
+            .Include(x => x.Discovery)
+            .Where(x => x.Discovery.SourceId == source.Id && x.DetailsFetchedAt == null)
+            .OrderByDescending(x => x.Discovery.PublishedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+        if (pending.Count == 0)
+        {
+            return null;
+        }
+
+        RepositoryDetailsBatch batch;
+        try
+        {
+            batch = await detailsAdapter.FetchDetailsAsync(source, pending, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Nie udało się pobrać szczegółów repozytoriów źródła {Source}.", source.Name);
+            return $"Nie udało się pobrać szczegółów repozytoriów: {exception.Message}";
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var result in batch.Results)
+        {
+            RepositoryContent.ApplyDetails(result.Repository, result.Details, result.Error, now);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation(
+            "Szczegóły repozytoriów źródła {Source}: {Done} z {Pending}. {Stop}",
+            source.Name,
+            batch.Results.Count,
+            pending.Count,
+            batch.StopReason);
+
+        return batch.StopReason is null
+            ? null
+            : $"README pobrano dla {batch.Results.Count} z {pending.Count} projektów; reszta w kolejnym skanie. {batch.StopReason}";
+    }
+
+    private static string? Limit(string? value) =>
+        value is null ? null : value[..Math.Min(value.Length, ContentLimits.MaxErrorLength)];
+
     private static Discovery CreateDiscovery(Source source, SourceItem item, string hash, DateTime now) => new()
     {
+        Repository = item.Repository is null ? null : RepositoryContent.Create(item.Repository, now),
         Title = item.Title,
         Description = item.Description,
         RawContent = item.Content,
@@ -197,19 +268,46 @@ public sealed class ScanService(
         IsDemo = false
     };
 
-    private static void UpdateDiscovery(Discovery discovery, SourceItem item, string hash)
+    private static void UpdateDiscovery(Discovery discovery, SourceItem item, string hash, DateTime now)
     {
         discovery.Title = item.Title;
         discovery.Description = item.Description;
-        discovery.RawContent = item.Content;
-        discovery.ContentLength = item.Content.Length;
-        discovery.IsContentTruncated = item.Content.Length >= ContentLimits.MaxRawContentLength;
+
+        // README pobrane wcześniej jest pełniejsze niż opis z listy wyników; nie nadpisujemy go.
+        var hasDetails = discovery.Repository?.DetailsFetchedAt is not null;
+        if (!hasDetails)
+        {
+            discovery.RawContent = item.Content;
+            discovery.ContentLength = item.Content.Length;
+            discovery.IsContentTruncated = item.Content.Length >= ContentLimits.MaxRawContentLength;
+        }
+
+        if (item.Repository is not null)
+        {
+            if (discovery.Repository is null)
+            {
+                discovery.Repository = RepositoryContent.Create(item.Repository, now);
+            }
+            else
+            {
+                RepositoryContent.UpdateMetadata(discovery.Repository, item.Repository, now);
+                if (RepositoryContent.NeedsDetailsRefresh(discovery.Repository, item.LastActivityAt))
+                {
+                    discovery.Repository.DetailsFetchedAt = null;
+                }
+            }
+        }
+
         discovery.SourceUrl = item.SourceUrl;
         discovery.PublishedAt = item.PublishedAt ?? discovery.PublishedAt;
         discovery.LastActivityAt = item.LastActivityAt ?? discovery.LastActivityAt;
         discovery.Author = item.Author ?? discovery.Author;
         discovery.Organization = item.Organization ?? discovery.Organization;
-        discovery.Technologies = JsonSerializer.Serialize(item.Technologies);
+        discovery.Technologies = hasDetails
+            ? RepositoryContent.MergeTechnologies(
+                JsonSerializer.Serialize(item.Technologies),
+                RepositoryContent.ReadLanguages(discovery.Repository!.Languages))
+            : JsonSerializer.Serialize(item.Technologies);
         discovery.ContentHash = hash;
     }
 

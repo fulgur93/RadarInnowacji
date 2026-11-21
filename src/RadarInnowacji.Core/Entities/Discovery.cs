@@ -40,5 +40,6 @@ public sealed class Discovery
     public bool IsDemo { get; set; }
 
     public ICollection<DiscoveryProject> ProjectLinks { get; set; } = new List<DiscoveryProject>();
+    public RepositoryInfo? Repository { get; set; }
     public ICollection<AiAnalysisRecord> AiAnalyses { get; set; } = new List<AiAnalysisRecord>();
 }

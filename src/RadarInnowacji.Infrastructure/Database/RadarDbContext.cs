@@ -18,6 +18,7 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
     public DbSet<ProjectCategory> ProjectCategories => Set<ProjectCategory>();
     public DbSet<ScanHistory> ScanHistory => Set<ScanHistory>();
     public DbSet<AiAnalysisRecord> AiAnalyses => Set<AiAnalysisRecord>();
+    public DbSet<RepositoryInfo> Repositories => Set<RepositoryInfo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,6 +58,31 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
             entity.HasIndex(x => x.ProcessingStatus);
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.IsPotentialInnovation);
+        });
+
+        modelBuilder.Entity<RepositoryInfo>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Platform).IsRequired().HasMaxLength(32);
+            entity.Property(x => x.ProjectId).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.FullName).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.License).HasMaxLength(200);
+            entity.Property(x => x.HomepageUrl).HasMaxLength(ContentLimits.MaxSourceUrlLength);
+            entity.Property(x => x.DemoUrl).HasMaxLength(ContentLimits.MaxSourceUrlLength);
+            entity.Property(x => x.DefaultBranch).HasMaxLength(200);
+            entity.Property(x => x.ReadmePath).HasMaxLength(500);
+            entity.Property(x => x.Languages).HasMaxLength(4000).HasDefaultValue("{}");
+            entity.Property(x => x.DetailsError).HasMaxLength(ContentLimits.MaxErrorLength);
+
+            entity.HasOne(x => x.Discovery)
+                .WithOne(x => x.Repository)
+                .HasForeignKey<RepositoryInfo>(x => x.DiscoveryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.DiscoveryId).IsUnique();
+            entity.HasIndex(x => new { x.Platform, x.FullName });
+            entity.HasIndex(x => x.DetailsFetchedAt);
+            entity.HasIndex(x => x.Stars);
         });
 
         modelBuilder.Entity<InnovationProject>(entity =>

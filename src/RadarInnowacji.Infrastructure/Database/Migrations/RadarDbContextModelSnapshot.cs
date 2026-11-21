@@ -319,6 +319,102 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.ToTable("ProjectCategories");
                 });
 
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.RepositoryInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DefaultBranch")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DemoUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetailsError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DetailsFetchedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DiscoveryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Forks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("HasReadme")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HomepageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsFork")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Languages")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("{}");
+
+                    b.Property<string>("License")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("MetadataUpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OpenIssues")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProjectId")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ReadmeLength")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReadmePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Stars")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetailsFetchedAt");
+
+                    b.HasIndex("DiscoveryId")
+                        .IsUnique();
+
+                    b.HasIndex("Stars");
+
+                    b.HasIndex("Platform", "FullName");
+
+                    b.ToTable("Repositories");
+                });
+
             modelBuilder.Entity("RadarInnowacji.Core.Entities.ScanHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -487,6 +583,17 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.RepositoryInfo", b =>
+                {
+                    b.HasOne("RadarInnowacji.Core.Entities.Discovery", "Discovery")
+                        .WithOne("Repository")
+                        .HasForeignKey("RadarInnowacji.Core.Entities.RepositoryInfo", "DiscoveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Discovery");
+                });
+
             modelBuilder.Entity("RadarInnowacji.Core.Entities.ScanHistory", b =>
                 {
                     b.HasOne("RadarInnowacji.Core.Entities.Source", "Source")
@@ -510,6 +617,8 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Navigation("AiAnalyses");
 
                     b.Navigation("ProjectLinks");
+
+                    b.Navigation("Repository");
                 });
 
             modelBuilder.Entity("RadarInnowacji.Core.Entities.InnovationProject", b =>

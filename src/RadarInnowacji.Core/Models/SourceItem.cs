@@ -11,4 +11,8 @@ public sealed record SourceItem(
     DateTime? LastActivityAt,
     string? Author,
     string? Organization,
-    IReadOnlyList<string> Technologies);
+    IReadOnlyList<string> Technologies)
+{
+    /// <summary>Metadane repozytorium kodu; null dla źródeł innych niż GitHub/GitLab.</summary>
+    public RepositoryMetadata? Repository { get; init; }
+}

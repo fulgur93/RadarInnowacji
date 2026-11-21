@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using RadarInnowacji.Core.Entities;
 using RadarInnowacji.Core.Enums;
 using RadarInnowacji.Infrastructure.Configuration;
 using RadarInnowacji.Core.Models;
@@ -186,8 +187,97 @@ public sealed class GitLabSourceAdapter(
             AdapterHelpers.ParseDate(AdapterHelpers.ReadString(item, "last_activity_at", "updated_at")),
             namespaceName,
             "GitLab",
-            topics.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+            topics.Distinct(StringComparer.OrdinalIgnoreCase).ToList()) with
+        {
+            Repository = new RepositoryMetadata(
+                "GitLab",
+                externalId,
+                AdapterHelpers.ReadString(item, "path_with_namespace") ?? title,
+                AdapterHelpers.ReadInt(item, "star_count") ?? 0,
+                AdapterHelpers.ReadInt(item, "forks_count") ?? 0,
+                AdapterHelpers.ReadInt(item, "open_issues_count"),
+                null,
+                null,
+                AdapterHelpers.ReadString(item, "default_branch"),
+                ReadmePath(AdapterHelpers.ReadString(item, "readme_url"), AdapterHelpers.ReadString(item, "default_branch")),
+                item.ValueKind == JsonValueKind.Object && item.TryGetProperty("forked_from_project", out var parent) &&
+                parent.ValueKind == JsonValueKind.Object,
+                AdapterHelpers.ReadBool(item, "archived"))
+        };
     }
+
+    /// <summary>
+    /// GET /projects/:id?license=true (licencja, gałąź, ścieżka README), surowe README
+    /// z /repository/files/:path/raw i /languages (GitLab podaje już procenty).
+    /// </summary>
+    protected override async Task<RepositoryDetails> FetchDetailsCoreAsync(
+        RepositoryApiClient client,
+        string apiBase,
+        RepositoryInfo repository,
+        CancellationToken cancellationToken)
+    {
+        var projectUrl = $"{apiBase}/projects/{Uri.EscapeDataString(repository.ProjectId)}";
+        var project = await client.TryGetAsync($"{projectUrl}?license=true", cancellationToken);
+        string? license = null;
+        var branch = repository.DefaultBranch;
+        var readmePath = repository.ReadmePath;
+        if (project is not null)
+        {
+            if (project.Root.TryGetProperty("license", out var licenseElement) && licenseElement.ValueKind == JsonValueKind.Object)
+            {
+                license = AdapterHelpers.ReadString(licenseElement, "name", "nickname", "key");
+            }
+
+            branch = AdapterHelpers.ReadString(project.Root, "default_branch") ?? branch;
+            readmePath = ReadmePath(AdapterHelpers.ReadString(project.Root, "readme_url"), branch) ?? readmePath;
+        }
+
+        string? readme = null;
+        if (readmePath is not null && branch is not null)
+        {
+            readme = await client.TryGetTextAsync(
+                $"{projectUrl}/repository/files/{Uri.EscapeDataString(readmePath)}/raw?ref={Uri.EscapeDataString(branch)}",
+                "text/plain",
+                MaxReadmeChars,
+                cancellationToken);
+        }
+
+        var languages = await client.TryGetAsync($"{projectUrl}/languages", cancellationToken);
+        return new RepositoryDetails(
+            readme,
+            languages is null
+                ? new Dictionary<string, double>()
+                : AdapterHelpers.ReadNumberMap(languages.Root).OrderByDescending(x => x.Value)
+                    .ToDictionary(x => x.Key, x => Math.Round(x.Value, 1, MidpointRounding.AwayFromZero), StringComparer.OrdinalIgnoreCase),
+            license,
+            branch);
+    }
+
+    /// <summary>readme_url ma postać {web_url}/-/blob/{gałąź}/{ścieżka}; zwraca ścieżkę pliku.</summary>
+    public static string? ReadmePath(string? readmeUrl, string? branch)
+    {
+        if (string.IsNullOrWhiteSpace(readmeUrl))
+        {
+            return null;
+        }
+
+        const string marker = "/-/blob/";
+        var index = readmeUrl.IndexOf(marker, StringComparison.Ordinal);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        var rest = Uri.UnescapeDataString(readmeUrl[(index + marker.Length)..]);
+        if (!string.IsNullOrEmpty(branch) && rest.StartsWith(branch + "/", StringComparison.Ordinal))
+        {
+            return rest[(branch.Length + 1)..];
+        }
+
+        var slash = rest.IndexOf('/');
+        return slash < 0 ? null : rest[(slash + 1)..];
+    }
+
 
     private static string? ReadIdentifier(JsonElement item)
     {

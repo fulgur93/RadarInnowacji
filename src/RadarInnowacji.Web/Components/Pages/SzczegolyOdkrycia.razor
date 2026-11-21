@@ -1,5 +1,6 @@
 @page "/odkrycia/{Id:int}"
 @rendermode InteractiveServer
+@using RadarInnowacji.Infrastructure.Services
 @inject IDiscoveryService DiscoveryService
 
 <PageTitle>Szczegóły odkrycia — Radar Innowacji</PageTitle>
@@ -105,6 +106,55 @@ else
         </div>
 
         <div class="col-12 col-xl-4">
+            @if (discovery.Repository is { } repo)
+            {
+                <div class="card dashboard-card mb-3">
+                    <div class="card-header dashboard-card-header">Repozytorium @repo.Platform</div>
+                    <div class="card-body">
+                        <div class="fw-semibold small mb-2 text-break">@repo.FullName</div>
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            <span class="badge bg-light text-dark border">★ @repo.Stars</span>
+                            <span class="badge bg-light text-dark border">Forki: @repo.Forks</span>
+                            @if (repo.OpenIssues is { } issues) { <span class="badge bg-light text-dark border">Zgłoszenia: @issues</span> }
+                            @if (repo.IsFork) { <span class="badge bg-warning text-dark">Fork</span> }
+                            @if (repo.IsArchived) { <span class="badge bg-secondary">Zarchiwizowane</span> }
+                        </div>
+                        <dl class="row small mb-2">
+                            <dt class="col-5">Licencja</dt><dd class="col-7">@(repo.License ?? "brak danych")</dd>
+                            <dt class="col-5">Gałąź domyślna</dt><dd class="col-7">@(repo.DefaultBranch ?? "brak danych")</dd>
+                            <dt class="col-5">README</dt>
+                            <dd class="col-7">
+                                @if (repo.DetailsFetchedAt is null) { <span class="text-muted">oczekuje na pobranie</span> }
+                                else if (repo.DetailsError is not null) { <span class="text-danger">błąd: @repo.DetailsError</span> }
+                                else if (repo.HasReadme == true) { <span>@repo.ReadmeLength@(repo.ReadmeLength >= RepositoryContent.MaxReadmeChars ? "+" : "") znaków</span> }
+                                else { <span class="text-muted">brak</span> }
+                            </dd>
+                            <dt class="col-5">Demo</dt>
+                            <dd class="col-7 text-break">
+                                @if (repo.DemoUrl is not null)
+                                {
+                                    <a href="@repo.DemoUrl" target="_blank" rel="noopener noreferrer">@repo.DemoUrl</a>
+                                }
+                                else { <span class="text-muted">nie znaleziono</span> }
+                            </dd>
+                        </dl>
+                        @{ var languages = RepositoryContent.ReadLanguages(repo.Languages); }
+                        @if (languages.Count > 0)
+                        {
+                            <div class="small mb-2">
+                                @foreach (var (language, share) in languages.Take(6))
+                                {
+                                    <span class="badge bg-light text-dark border me-1 mb-1">@language @share.ToString("0.#", CultureInfo.InvariantCulture)%</span>
+                                }
+                            </div>
+                        }
+                        <p class="small text-muted mb-0">
+                            Liczba gwiazdek jest informacyjna i nie decyduje o uznaniu projektu za potencjalną innowację.
+                        </p>
+                    </div>
+                </div>
+            }
+
             <div class="card dashboard-card mb-3">
                 <div class="card-header dashboard-card-header">Technologie i kategorie</div>
                 <div class="card-body">

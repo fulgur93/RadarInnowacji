@@ -98,6 +98,50 @@ internal static class AdapterHelpers
         return result;
     }
 
+    public static int? ReadInt(JsonElement parent, params string[] propertyNames)
+    {
+        if (parent.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        foreach (var name in propertyNames)
+        {
+            if (parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number &&
+                value.TryGetInt32(out var number))
+            {
+                return number;
+            }
+        }
+
+        return null;
+    }
+
+    public static bool ReadBool(JsonElement parent, string propertyName) =>
+        parent.ValueKind == JsonValueKind.Object &&
+        parent.TryGetProperty(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.True;
+
+    /// <summary>Słownik liczb z obiektu JSON (np. języki → bajty lub procenty).</summary>
+    public static Dictionary<string, double> ReadNumberMap(JsonElement parent)
+    {
+        var result = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        if (parent.ValueKind != JsonValueKind.Object)
+        {
+            return result;
+        }
+
+        foreach (var property in parent.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetDouble(out var value))
+            {
+                result[property.Name] = value;
+            }
+        }
+
+        return result;
+    }
+
     public static string? ReadString(JsonElement parent, params string[] propertyNames)
     {
         if (parent.ValueKind != JsonValueKind.Object)

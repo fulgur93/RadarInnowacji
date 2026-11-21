@@ -15,6 +15,9 @@ public sealed class RepositoryOptions
     /// <summary>Jak długo skan może czekać na odnowienie limitu API, zanim zakończy się częściowo.</summary>
     public int MaxRateLimitWaitSeconds { get; set; } = 65;
 
+    /// <summary>Ile projektów na skan źródła wzbogacić o README i języki (2–3 zapytania na projekt).</summary>
+    public int MaxDetailsPerScan { get; set; } = 30;
+
     /// <summary>Ile ostatnich godzin GitHub sprawdzać ponownie (opóźnienie indeksowania wyszukiwarki).</summary>
     public int OverlapHours { get; set; } = 2;
 }

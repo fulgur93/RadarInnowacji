@@ -35,7 +35,58 @@ public sealed class RepositoryApiClient(
 
     public int RequestCount { get; private set; }
 
-    public async Task<RepositoryApiPage> GetAsync(string url, CancellationToken cancellationToken)
+    public async Task<RepositoryApiPage> GetAsync(string url, CancellationToken cancellationToken) =>
+        await TryGetAsync(url, cancellationToken)
+        ?? throw new HttpRequestException($"{platformName}: nie znaleziono zasobu {url}.", null, HttpStatusCode.NotFound);
+
+    /// <summary>Jak <see cref="GetAsync"/>, ale 404 zwraca null (np. brak README lub języków).</summary>
+    public async Task<RepositoryApiPage?> TryGetAsync(string url, CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(url, null, cancellationToken);
+        if (response is null)
+        {
+            return null;
+        }
+
+        using var document = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync(cancellationToken),
+            cancellationToken: cancellationToken);
+        var root = document.RootElement.Clone();
+        return new RepositoryApiPage(root, HasNextPage(response.Headers), TotalCount(root, response.Headers));
+    }
+
+    /// <summary>Pobiera treść tekstową (np. surowe README) z limitem długości; 404 zwraca null.</summary>
+    public async Task<string?> TryGetTextAsync(
+        string url,
+        string? accept,
+        int maxLength,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(url, request =>
+        {
+            if (accept is not null)
+            {
+                request.Headers.Accept.Clear();
+                request.Headers.Accept.ParseAdd(accept);
+            }
+        }, cancellationToken);
+        if (response is null)
+        {
+            return null;
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream);
+        var buffer = new char[Math.Max(1, maxLength)];
+        var read = await reader.ReadBlockAsync(buffer.AsMemory(), cancellationToken);
+        return new string(buffer, 0, read);
+    }
+
+    /// <summary>Wysyła zapytanie z obsługą limitów i ponowień; null dla 404, wyjątek dla innych błędów.</summary>
+    private async Task<HttpResponseMessage?> SendAsync(
+        string url,
+        Action<HttpRequestMessage>? customize,
+        CancellationToken cancellationToken)
     {
         for (var attempt = 1; ; attempt++)
         {
@@ -51,17 +102,19 @@ public sealed class RepositoryApiClient(
             RequestCount++;
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             prepareRequest(request);
+            customize?.Invoke(request);
             if (request.Headers.UserAgent.Count == 0)
             {
                 request.Headers.UserAgent.ParseAdd("RadarInnowacji/1.0 (prototyp)");
             }
 
-            using var response = await httpClient.SendAsync(request, cancellationToken);
+            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             ReadRateLimit(response.Headers);
 
             if (IsRateLimited(response))
             {
                 var wait = RetryDelay(response);
+                response.Dispose();
                 if (attempt < MaxAttempts && wait <= MaxWait)
                 {
                     await delay(wait, cancellationToken);
@@ -73,18 +126,28 @@ public sealed class RepositoryApiClient(
 
             if ((int)response.StatusCode >= 500 && attempt < MaxAttempts)
             {
+                response.Dispose();
                 await delay(TimeSpan.FromSeconds(2 * attempt), cancellationToken);
                 continue;
             }
 
-            response.EnsureSuccessStatusCode();
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                response.Dispose();
+                return null;
+            }
 
-            using var document = await JsonDocument.ParseAsync(
-                await response.Content.ReadAsStreamAsync(cancellationToken),
-                cancellationToken: cancellationToken);
-            var root = document.RootElement.Clone();
+            try
+            {
+                response.EnsureSuccessStatusCode();
+            }
+            catch
+            {
+                response.Dispose();
+                throw;
+            }
 
-            return new RepositoryApiPage(root, HasNextPage(response.Headers), TotalCount(root, response.Headers));
+            return response;
         }
     }
 

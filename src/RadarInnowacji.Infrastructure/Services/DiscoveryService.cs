@@ -37,6 +37,7 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
     {
         var discovery = await db.Discoveries
             .Include(x => x.Source)
+            .Include(x => x.Repository)
             .Include(x => x.ProjectLinks).ThenInclude(x => x.Project).ThenInclude(x => x.CategoryLinks).ThenInclude(x => x.Category)
             .Include(x => x.AiAnalyses)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

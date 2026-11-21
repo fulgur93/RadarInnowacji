@@ -27,8 +27,10 @@ public abstract class RepositorySourceAdapterBase(
     HttpClient httpClient,
     TimeProvider? timeProvider,
     RepositoryOptions? options,
-    Func<TimeSpan, CancellationToken, Task>? delay) : ISourceAdapter
+    Func<TimeSpan, CancellationToken, Task>? delay) : ISourceAdapter, IRepositoryDetailsAdapter
 {
+    protected const int MaxReadmeChars = Services.RepositoryContent.MaxReadmeChars;
+
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly RepositoryOptions _options = options ?? new RepositoryOptions();
     private readonly Func<TimeSpan, CancellationToken, Task> _delay = delay ?? Task.Delay;
@@ -53,6 +55,55 @@ public abstract class RepositorySourceAdapterBase(
         RepositorySearchTerm term,
         string? cursor,
         Action<string> saveCursor);
+
+    /// <summary>README, języki i brakujące metadane jednego repozytorium.</summary>
+    protected abstract Task<RepositoryDetails> FetchDetailsCoreAsync(
+        RepositoryApiClient client,
+        string apiBase,
+        RepositoryInfo repository,
+        CancellationToken cancellationToken);
+
+    public async Task<RepositoryDetailsBatch> FetchDetailsAsync(
+        Source source,
+        IReadOnlyList<RepositoryInfo> repositories,
+        CancellationToken cancellationToken = default)
+    {
+        var token = AdapterHelpers.GetConfigurationValue(source, SourceConfiguration.TokenKey);
+        var client = new RepositoryApiClient(
+            httpClient, PlatformName, request => PrepareRequest(request, token), _options, _time, _delay);
+        var apiBase = ApiBase(source.Url);
+        var results = new List<RepositoryDetailsResult>();
+
+        foreach (var repository in repositories)
+        {
+            try
+            {
+                var details = await FetchDetailsCoreAsync(client, apiBase, repository, cancellationToken);
+                results.Add(new RepositoryDetailsResult(repository, details, null));
+            }
+            catch (RepositoryFetchStoppedException stopped)
+            {
+                return new RepositoryDetailsBatch(results, stopped.Message);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or JsonException)
+            {
+                results.Add(new RepositoryDetailsResult(
+                    repository, null, AdapterHelpers.Truncate(exception.Message, ContentLimits.MaxErrorLength)));
+            }
+        }
+
+        return new RepositoryDetailsBatch(results, null);
+    }
+
+    /// <summary>Zamienia rozmiary (np. bajty kodu) na udział procentowy, od największego.</summary>
+    protected static IReadOnlyDictionary<string, double> ToShares(IReadOnlyDictionary<string, double> sizes)
+    {
+        var total = sizes.Values.Sum();
+        return total <= 0
+            ? new Dictionary<string, double>()
+            : sizes.OrderByDescending(x => x.Value)
+                .ToDictionary(x => x.Key, x => Math.Round(x.Value * 100 / total, 1, MidpointRounding.AwayFromZero), StringComparer.OrdinalIgnoreCase);
+    }
 
     public async Task<IReadOnlyList<SourceItem>> FetchAsync(Source source, CancellationToken cancellationToken = default) =>
         (await FetchResultAsync(source, _options.MaxItemsPerScan, cancellationToken)).Items;
