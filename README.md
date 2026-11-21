@@ -75,6 +75,11 @@ nie musi wywoływać `dotnet ef database update`.
 | `Scanning:IntervalMinutes` | `15` | Częstotliwość uruchamiania cyklu skanowania |
 | `Scanning:StartDelaySeconds` | `10` | Opóźnienie pierwszego skanu po starcie |
 | `Scanning:MaxItemsPerSource` | `50` | Maksymalna liczba materiałów zapisanych z jednego źródła |
+| `Repositories:MaxItemsPerScan` | `300` | Radar repozytoriów: maks. liczba projektów z jednego skanu źródła GitHub/GitLab |
+| `Repositories:MaxPagesPerQuery` | `10` | Maks. liczba stron (po 100) na jeden zakres dat (GitHub pozwala na 10) |
+| `Repositories:MaxRequestsPerScan` | `60` | Maks. liczba wywołań API w jednym skanie źródła |
+| `Repositories:MaxRateLimitWaitSeconds` | `65` | Jak długo czekać na odnowienie limitu API; dłuższy limit kończy skan jako częściowy |
+| `Repositories:OverlapHours` | `2` | GitHub: ile ostatnich godzin sprawdzać ponownie (opóźnienie indeksowania) |
 
 Zmienne środowiskowe nadpisują ustawienia uruchomieniowe:
 `RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`,

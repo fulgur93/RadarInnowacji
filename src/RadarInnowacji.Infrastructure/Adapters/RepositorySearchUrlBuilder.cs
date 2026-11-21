@@ -3,65 +3,123 @@ using RadarInnowacji.Core.Models;
 
 namespace RadarInnowacji.Infrastructure.Adapters;
 
+/// <summary>Jedno wyszukiwanie: słowo kluczowe albo temat, opcjonalnie zawężone do języka.</summary>
+public sealed record RepositorySearchTerm(RepositorySearchTermKind Kind, string Value, string? Language)
+{
+    /// <summary>Stały klucz, pod którym zapisywany jest postęp skanowania przyrostowego.</summary>
+    public string Key =>
+        $"{(Kind == RepositorySearchTermKind.Keyword ? "kw" : "topic")}:{Value.ToLowerInvariant()}" +
+        (Language is null ? string.Empty : $"|lang:{Language.ToLowerInvariant()}");
+}
+
+public enum RepositorySearchTermKind
+{
+    Keyword,
+    Topic
+}
+
 /// <summary>
 /// Składa adresy wyszukiwania GitHub/GitLab z zapytania radaru repozytoriów.
-/// Każde słowo kluczowe i temat to osobne zapytanie (opcjonalnie razy każdy język),
-/// sortowane po dacie, nigdy po gwiazdkach: małe i nowe projekty nie mogą przepadać.
+/// Każde słowo kluczowe i temat to osobne wyszukiwanie (opcjonalnie razy każdy język),
+/// filtrowane po dacie utworzenia, nigdy po gwiazdkach: małe i nowe projekty nie mogą przepadać.
 /// </summary>
 public static class RepositorySearchUrlBuilder
 {
-    /// <summary>Górny limit zapytań na jeden skan źródła (ochrona limitów API).</summary>
-    public const int MaxRequestsPerScan = 30;
+    /// <summary>Górny limit wyszukiwań (słowo/temat × język) na jeden skan źródła.</summary>
+    public const int MaxTermsPerScan = 30;
 
     public const int PageSize = 100;
 
-    public static IReadOnlyList<string> BuildGitHub(string sourceUrl, RepositoryQuery query, DateTime nowUtc)
+    public static IReadOnlyList<RepositorySearchTerm> Terms(RepositoryQuery query)
     {
         query = query.Normalize();
-        var apiBase = GitHubApiBase(sourceUrl);
-        var createdSince = CreatedSince(query, nowUtc);
+        var terms = query.Keywords.Select(x => (Kind: RepositorySearchTermKind.Keyword, Value: x))
+            .Concat(query.Topics.Select(x => (Kind: RepositorySearchTermKind.Topic, Value: x)));
 
-        var terms = query.Keywords.Select(keyword => $"\"{keyword}\" in:name,description,topics,readme")
-            .Concat(query.Topics.Select(topic => $"topic:{topic}"));
-
-        return WithLanguages(terms, query.Languages, (term, language) =>
-            {
-                var q = $"{term} created:>={createdSince} fork:false archived:false";
-                if (language is not null)
-                {
-                    q += $" language:{QuoteIfNeeded(language)}";
-                }
-
-                return $"{apiBase}/search/repositories?q={Uri.EscapeDataString(q)}" +
-                       $"&sort=updated&order=desc&per_page={PageSize}";
-            })
-            .Take(MaxRequestsPerScan)
+        return (query.Languages.Count == 0
+                ? terms.Select(t => new RepositorySearchTerm(t.Kind, t.Value, null))
+                : terms.SelectMany(t => query.Languages.Select(l => new RepositorySearchTerm(t.Kind, t.Value, l))))
+            .Take(MaxTermsPerScan)
             .ToList();
     }
 
+    /// <summary>Początek okna czasowego zapytania (północ UTC N dni temu).</summary>
+    public static DateTime WindowStart(RepositoryQuery query, DateTime nowUtc) =>
+        DateTime.SpecifyKind(nowUtc.Date.AddDays(-query.Normalize().CreatedWithinDays), DateTimeKind.Utc);
+
+    /// <summary>Podgląd: pierwsza strona każdego wyszukiwania dla całego okna czasowego.</summary>
+    public static IReadOnlyList<string> BuildGitHub(string sourceUrl, RepositoryQuery query, DateTime nowUtc)
+    {
+        var apiBase = GitHubApiBase(sourceUrl);
+        var from = WindowStart(query, nowUtc);
+        return Terms(query).Select(t => GitHubSearchUrl(apiBase, t, from, nowUtc, 1)).ToList();
+    }
+
+    /// <summary>Podgląd: pierwsza strona każdego wyszukiwania (od najnowszych projektów).</summary>
     public static IReadOnlyList<string> BuildGitLab(string sourceUrl, RepositoryQuery query, DateTime nowUtc)
     {
-        query = query.Normalize();
         var apiBase = GitLabApiBase(sourceUrl);
-        var createdAfter = Uri.EscapeDataString(
-            nowUtc.Date.AddDays(-query.CreatedWithinDays).ToString("yyyy-MM-dd'T'00:00:00'Z'", CultureInfo.InvariantCulture));
-
-        var terms = query.Keywords.Select(keyword => $"search={Uri.EscapeDataString(keyword)}")
-            .Concat(query.Topics.Select(topic => $"topic={Uri.EscapeDataString(topic)}"));
-
-        return WithLanguages(terms, query.Languages, (term, language) =>
-            {
-                var url = $"{apiBase}/projects?{term}&visibility=public&archived=false" +
-                          $"&created_after={createdAfter}&order_by=created_at&sort=desc&per_page={PageSize}";
-                if (language is not null)
-                {
-                    url += $"&with_programming_language={Uri.EscapeDataString(language)}";
-                }
-
-                return url;
-            })
-            .Take(MaxRequestsPerScan)
+        var from = WindowStart(query, nowUtc);
+        return Terms(query)
+            .Select(t => GitLabSearchUrl(apiBase, t, idAfter: null, idBefore: null, ascending: false, activityAfter: from))
             .ToList();
+    }
+
+    /// <summary>Wyszukiwanie GitHub dla projektów utworzonych w zakresie [from, to] (obustronnie domkniętym).</summary>
+    public static string GitHubSearchUrl(string apiBase, RepositorySearchTerm term, DateTime from, DateTime to, int page)
+    {
+        var q = term.Kind == RepositorySearchTermKind.Keyword
+            ? $"\"{term.Value}\" in:name,description,topics,readme"
+            : $"topic:{term.Value}";
+        q += $" created:{Iso(from)}..{Iso(to)} fork:false archived:false";
+        if (term.Language is not null)
+        {
+            q += $" language:{(term.Language.Contains(' ') ? $"\"{term.Language}\"" : term.Language)}";
+        }
+
+        return $"{apiBase}/search/repositories?q={Uri.EscapeDataString(q)}" +
+               $"&sort=updated&order=desc&per_page={PageSize}&page={page}";
+    }
+
+    /// <summary>
+    /// Lista publicznych projektów GitLab sortowana po ID (GitLab nie filtruje po dacie utworzenia,
+    /// a ID rośnie wraz z nią). Zakres ustala się przez id_after/id_before; activityAfter odsiewa
+    /// projekty nieaktywne od początku okna (projekt utworzony w oknie zawsze ma w nim aktywność).
+    /// </summary>
+    public static string GitLabSearchUrl(
+        string apiBase,
+        RepositorySearchTerm term,
+        long? idAfter,
+        long? idBefore,
+        bool ascending,
+        DateTime? activityAfter)
+    {
+        var filter = term.Kind == RepositorySearchTermKind.Keyword
+            ? $"search={Uri.EscapeDataString(term.Value)}"
+            : $"topic={Uri.EscapeDataString(term.Value)}";
+        var url = $"{apiBase}/projects?{filter}&visibility=public&archived=false" +
+                  $"&order_by=id&sort={(ascending ? "asc" : "desc")}&per_page={PageSize}";
+        if (idAfter is not null)
+        {
+            url += $"&id_after={idAfter.Value.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        if (idBefore is not null)
+        {
+            url += $"&id_before={idBefore.Value.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        if (activityAfter is not null)
+        {
+            url += $"&last_activity_after={Uri.EscapeDataString(Iso(activityAfter.Value))}";
+        }
+
+        if (term.Language is not null)
+        {
+            url += $"&with_programming_language={Uri.EscapeDataString(term.Language)}";
+        }
+
+        return url;
     }
 
     /// <summary>github.com i api.github.com → publiczne API; inny host → GitHub Enterprise (/api/v3).</summary>
@@ -85,16 +143,6 @@ public static class RepositorySearchUrlBuilder
             ? uri
             : new Uri(fallback);
 
-    private static string CreatedSince(RepositoryQuery query, DateTime nowUtc) =>
-        nowUtc.Date.AddDays(-query.CreatedWithinDays).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-    private static IEnumerable<string> WithLanguages(
-        IEnumerable<string> terms,
-        IReadOnlyList<string> languages,
-        Func<string, string?, string> build) =>
-        languages.Count == 0
-            ? terms.Select(term => build(term, null))
-            : terms.SelectMany(term => languages.Select(language => build(term, language)));
-
-    private static string QuoteIfNeeded(string value) => value.Contains(' ') ? $"\"{value}\"" : value;
+    private static string Iso(DateTime value) =>
+        DateTime.SpecifyKind(value, DateTimeKind.Utc).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 }

@@ -139,6 +139,13 @@
                 }
                 <label class="form-label form-label-sm">Token API (opcjonalnie)</label>
                 <input type="password" class="form-control form-control-sm mb-2" @bind="nowyToken" placeholder="token dostępu" />
+                @if (nowyTyp == SourceType.GitHubApi && string.IsNullOrWhiteSpace(nowyToken))
+                {
+                    <div class="alert alert-warning py-1 px-2 small mb-2">
+                        Bez tokena GitHub pozwala na 10 wyszukiwań na minutę i skan będzie wolny.
+                        Wystarczy token bez żadnych uprawnień (fine-grained, tylko publiczne repozytoria).
+                    </div>
+                }
                 <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" @bind="nowyAktywny" id="nowyAktywny" />
                     <label class="form-check-label form-label-sm" for="nowyAktywny">Źródło aktywne</label>
@@ -283,9 +290,15 @@
         try
         {
             var result = await ScanService.ScanSourceAsync(id);
-            komunikat = result.Status == ScanStatus.Succeeded
-                ? $"Skan źródła {result.SourceName}: znaleziono {result.ItemsFound}, nowych {result.ItemsNew}."
-                : $"Skan źródła {result.SourceName} nie powiódł się: {result.ErrorMessage}";
+            komunikat = result.Status switch
+            {
+                ScanStatus.Succeeded =>
+                    $"Skan źródła {result.SourceName}: znaleziono {result.ItemsFound}, nowych {result.ItemsNew}." +
+                    (result.ErrorMessage is null ? string.Empty : $" Uwaga: {result.ErrorMessage}"),
+                ScanStatus.Partial =>
+                    $"Skan źródła {result.SourceName} częściowy: znaleziono {result.ItemsFound}, nowych {result.ItemsNew}. {result.ErrorMessage}",
+                _ => $"Skan źródła {result.SourceName} nie powiódł się: {result.ErrorMessage}"
+            };
         }
         catch (Exception exception)
         {

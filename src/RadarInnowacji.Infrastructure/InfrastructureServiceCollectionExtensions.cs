@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using RadarInnowacji.Core.Interfaces;
 using RadarInnowacji.Infrastructure.Adapters;
 using RadarInnowacji.Infrastructure.Configuration;
@@ -39,9 +40,13 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddTransient<ISourceAdapter>(provider => new GitHubSourceAdapter(
-            provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources")));
+            provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources"),
+            TimeProvider.System,
+            provider.GetRequiredService<IOptions<RadarOptions>>().Value.Repositories));
         services.AddTransient<ISourceAdapter>(provider => new GitLabSourceAdapter(
-            provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources")));
+            provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources"),
+            TimeProvider.System,
+            provider.GetRequiredService<IOptions<RadarOptions>>().Value.Repositories));
         services.AddTransient<ISourceAdapter>(provider => new HuggingFaceSourceAdapter(
             provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources")));
         services.AddTransient<ISourceAdapter>(provider => new DspaceSourceAdapter(

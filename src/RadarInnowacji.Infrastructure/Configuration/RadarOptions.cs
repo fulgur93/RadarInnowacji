@@ -16,6 +16,7 @@ public sealed class RadarOptions
     public string DatabasePath { get; set; } = string.Empty;
     public string LogDirectory { get; set; } = string.Empty;
     public ScanningOptions Scanning { get; set; } = new();
+    public RepositoryOptions Repositories { get; set; } = new();
 
     public string EffectiveDatabasePath => string.IsNullOrWhiteSpace(DatabasePath)
         ? RadarDataPaths.DatabasePath

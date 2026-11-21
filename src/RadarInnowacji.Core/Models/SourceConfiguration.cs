@@ -8,6 +8,7 @@ public static class SourceConfiguration
 {
     public const string TokenKey = "token";
     public const string QueryKey = "query";
+    public const string CursorsKey = "cursors";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -27,22 +28,67 @@ public static class SourceConfiguration
         return root.ToJsonString();
     }
 
-    /// <summary>Podmienia zapytanie w istniejącej konfiguracji, zachowując pozostałe klucze (np. token).</summary>
+    /// <summary>
+    /// Podmienia zapytanie w istniejącej konfiguracji, zachowując pozostałe klucze (np. token).
+    /// Zmiana zapytania kasuje postęp skanowania przyrostowego, żeby nowy zakres został przeszukany od początku.
+    /// </summary>
     public static string WithRepositoryQuery(string? configuration, RepositoryQuery query)
     {
-        JsonObject root;
+        var root = ParseObject(configuration);
+        var newQuery = JsonSerializer.SerializeToNode(query, JsonOptions);
+        if (!JsonNode.DeepEquals(root[QueryKey], newQuery))
+        {
+            root.Remove(CursorsKey);
+        }
+
+        root[QueryKey] = newQuery;
+        return root.ToJsonString();
+    }
+
+    /// <summary>Zapisuje postęp skanowania przyrostowego (zastępuje poprzednie kursory).</summary>
+    public static string WithCursors(string? configuration, IReadOnlyDictionary<string, string> cursors)
+    {
+        var root = ParseObject(configuration);
+        var node = new JsonObject();
+        foreach (var (key, value) in cursors.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            node[key] = value;
+        }
+
+        root[CursorsKey] = node;
+        return root.ToJsonString();
+    }
+
+    public static IReadOnlyDictionary<string, string> ReadCursors(string? configuration)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (ParseObject(configuration)[CursorsKey] is not JsonObject cursors)
+        {
+            return result;
+        }
+
+        foreach (var (key, value) in cursors)
+        {
+            if (value is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var text))
+            {
+                result[key] = text;
+            }
+        }
+
+        return result;
+    }
+
+    private static JsonObject ParseObject(string? configuration)
+    {
         try
         {
-            root = JsonNode.Parse(string.IsNullOrWhiteSpace(configuration) ? "{}" : configuration) as JsonObject
+            return JsonNode.Parse(string.IsNullOrWhiteSpace(configuration) ? "{}" : configuration) as JsonObject
                    ?? new JsonObject();
         }
         catch (JsonException)
         {
-            root = new JsonObject();
+            return new JsonObject();
         }
-
-        root[QueryKey] = JsonSerializer.SerializeToNode(query, JsonOptions);
-        return root.ToJsonString();
     }
 
     /// <summary>Zwraca zapytanie repozytoriów albo null, gdy źródło używa surowego adresu URL.</summary>

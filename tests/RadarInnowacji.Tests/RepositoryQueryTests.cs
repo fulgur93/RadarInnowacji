@@ -47,9 +47,9 @@ public class RepositoryQueryTests
         var first = Uri.UnescapeDataString(urls[0]);
         Assert.StartsWith("https://api.github.com/search/repositories?q=", urls[0]);
         Assert.Contains("\"proof of concept\" in:name,description,topics,readme", first);
-        Assert.Contains("created:>=2026-10-22", first);
+        Assert.Contains("created:2026-10-22T00:00:00Z..2026-11-21T15:30:00Z", first);
         Assert.Contains("fork:false archived:false", first);
-        Assert.Contains("sort=updated&order=desc&per_page=100", first);
+        Assert.Contains("sort=updated&order=desc&per_page=100&page=1", first);
         Assert.DoesNotContain("stars", first);
         Assert.Contains("topic:robotics", Uri.UnescapeDataString(urls[1]));
     }
@@ -65,7 +65,7 @@ public class RepositoryQueryTests
 
         var urls = RepositorySearchUrlBuilder.BuildGitHub("https://github.com", query, Now);
 
-        Assert.Equal(RepositorySearchUrlBuilder.MaxRequestsPerScan, urls.Count);
+        Assert.Equal(RepositorySearchUrlBuilder.MaxTermsPerScan, urls.Count);
         Assert.Contains("language:Python", Uri.UnescapeDataString(urls[0]));
         Assert.Contains("language:Rust", Uri.UnescapeDataString(urls[1]));
     }
@@ -95,8 +95,9 @@ public class RepositoryQueryTests
         Assert.Equal(2, urls.Count);
         Assert.StartsWith("https://gitlab.uczelnia.edu.pl/api/v4/projects?search=nowa%20metoda&", urls[0]);
         Assert.Contains("visibility=public&archived=false", urls[0]);
-        Assert.Contains("created_after=2026-11-14T00%3A00%3A00Z", urls[0]);
-        Assert.Contains("order_by=created_at&sort=desc&per_page=100", urls[0]);
+        Assert.Contains("order_by=id&sort=desc&per_page=100", urls[0]);
+        Assert.Contains("last_activity_after=2026-11-14T00%3A00%3A00Z", urls[0]);
+        Assert.DoesNotContain("created_after", urls[0]);
         Assert.Contains("with_programming_language=Python", urls[0]);
         Assert.Contains("/projects?topic=iot&", urls[1]);
     }

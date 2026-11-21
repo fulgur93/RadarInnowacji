@@ -58,9 +58,11 @@ public sealed class ScanService(
                         $"Brak adaptera dla typu źródła {source.SourceType}.");
                 }
 
-                var items = await adapter.FetchAsync(source, cancellationToken);
-                var maxItems = Math.Clamp(options.Value.Scanning.MaxItemsPerSource, 1, 500);
-                var limited = items.Take(maxItems).ToList();
+                var maxItems = source.SourceType is SourceType.GitHubApi or SourceType.GitLabApi
+                    ? Math.Clamp(options.Value.Repositories.MaxItemsPerScan, 1, 2000)
+                    : Math.Clamp(options.Value.Scanning.MaxItemsPerSource, 1, 500);
+                var fetched = await adapter.FetchResultAsync(source, maxItems, cancellationToken);
+                var limited = fetched.Items.Take(maxItems).ToList();
                 var added = 0;
 
                 foreach (var item in limited)
@@ -81,24 +83,37 @@ public sealed class ScanService(
                     }
                 }
 
+                // Postęp skanowania przyrostowego zapisujemy także po skanie częściowym.
+                if (fetched.Cursors is not null)
+                {
+                    source.Configuration = SourceConfiguration.WithCursors(source.Configuration, fetched.Cursors);
+                }
+
+                var status = fetched.IsComplete ? ScanStatus.Succeeded : ScanStatus.Partial;
+                var warning = fetched.Warning is null
+                    ? null
+                    : fetched.Warning[..Math.Min(fetched.Warning.Length, ContentLimits.MaxErrorLength)];
+
                 var finishedAt = DateTime.UtcNow;
                 source.LastScanDate = finishedAt;
                 source.LastSuccessfulScan = finishedAt;
-                source.LastError = null;
-                history.Status = ScanStatus.Succeeded;
+                source.LastError = fetched.IsComplete ? null : warning;
+                history.Status = status;
                 history.ItemsFound = limited.Count;
                 history.ItemsNew = added;
                 history.FinishedAt = finishedAt;
-                history.ErrorMessage = null;
+                history.ErrorMessage = warning;
 
                 await db.SaveChangesAsync(cancellationToken);
                 logger.LogInformation(
-                    "Skan źródła {Source} zakończony: znaleziono {Found}, nowych {New}.",
+                    "Skan źródła {Source} zakończony ({Status}): znaleziono {Found}, nowych {New}. {Warning}",
                     source.Name,
+                    status,
                     limited.Count,
-                    added);
+                    added,
+                    warning);
 
-                return new ScanResult(source.Id, source.Name, ScanStatus.Succeeded, limited.Count, added, null);
+                return new ScanResult(source.Id, source.Name, status, limited.Count, added, warning);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
