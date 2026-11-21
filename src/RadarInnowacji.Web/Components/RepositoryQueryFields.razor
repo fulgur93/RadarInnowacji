@@ -1,0 +1,54 @@
+@using RadarInnowacji.Infrastructure.Adapters
+
+@* Pola zapytania radaru repozytoriów wraz z podglądem adresów, które wywoła adapter. *@
+
+<label class="form-label form-label-sm">Słowa kluczowe (rozdzielone przecinkami)</label>
+<textarea class="form-control form-control-sm mb-2" rows="3" @bind="Form.Keywords" @bind:event="oninput"></textarea>
+<label class="form-label form-label-sm">Tematy / topics (opcjonalnie)</label>
+<input class="form-control form-control-sm mb-2" @bind="Form.Topics" @bind:event="oninput" placeholder="np. robotics, iot" />
+<label class="form-label form-label-sm">Języki (opcjonalnie, puste = wszystkie)</label>
+<input class="form-control form-control-sm mb-2" @bind="Form.Languages" @bind:event="oninput" placeholder="np. Python, Rust" />
+<label class="form-label form-label-sm">Projekty utworzone w ostatnich (dni)</label>
+<input type="number" class="form-control form-control-sm mb-2" @bind="Form.CreatedWithinDays" @bind:event="oninput"
+       min="@RepositoryQuery.MinDays" max="@RepositoryQuery.MaxDays" />
+
+@{
+    var urls = PreviewUrls();
+}
+<div class="small text-muted mb-2">
+    @if (urls.Count == 0)
+    {
+        <span class="text-danger">Podaj przynajmniej jedno słowo kluczowe lub temat.</span>
+    }
+    else
+    {
+        <span>Zapytań na skan: @urls.Count (sortowanie po dacie, nie po gwiazdkach).</span>
+        <details>
+            <summary>Podgląd adresów</summary>
+            @foreach (var url in urls)
+            {
+                <div class="text-break font-monospace" style="font-size: .7rem">@url</div>
+            }
+        </details>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RepositoryQueryForm Form { get; set; } = null!;
+    [Parameter, EditorRequired] public SourceType SourceType { get; set; }
+    [Parameter] public string? SourceUrl { get; set; }
+
+    private IReadOnlyList<string> PreviewUrls()
+    {
+        var query = Form.ToQuery();
+        if (!query.HasSearchTerms)
+        {
+            return [];
+        }
+
+        var url = string.IsNullOrWhiteSpace(SourceUrl) ? RepositoryQueryForm.DefaultUrl(SourceType) : SourceUrl;
+        return SourceType == SourceType.GitHubApi
+            ? RepositorySearchUrlBuilder.BuildGitHub(url, query, DateTime.UtcNow)
+            : RepositorySearchUrlBuilder.BuildGitLab(url, query, DateTime.UtcNow);
+    }
+}

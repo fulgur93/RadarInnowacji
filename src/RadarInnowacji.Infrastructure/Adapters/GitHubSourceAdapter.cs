@@ -7,16 +7,41 @@ using RadarInnowacji.Core.Models;
 
 namespace RadarInnowacji.Infrastructure.Adapters;
 
-/// <summary>Adapter dla API GitHub (repozytoria wyszukane przez URL źródła).</summary>
-public sealed class GitHubSourceAdapter(HttpClient httpClient) : ISourceAdapter
+/// <summary>
+/// Adapter dla API GitHub. Gdy źródło ma zapytanie (klucz "query" w konfiguracji),
+/// adapter sam buduje adresy wyszukiwania; w przeciwnym razie pobiera surowy URL źródła.
+/// </summary>
+public sealed class GitHubSourceAdapter(HttpClient httpClient, TimeProvider? timeProvider = null) : ISourceAdapter
 {
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+
     public SourceType SourceType => SourceType.GitHubApi;
 
     public async Task<IReadOnlyList<SourceItem>> FetchAsync(
         Source source,
         CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, source.Url);
+        var query = SourceConfiguration.ReadRepositoryQuery(source.Configuration);
+        if (query is null || !query.HasSearchTerms)
+        {
+            return await FetchUrlAsync(source, source.Url, cancellationToken);
+        }
+
+        var results = new List<SourceItem>();
+        foreach (var url in RepositorySearchUrlBuilder.BuildGitHub(source.Url, query, _time.GetUtcNow().UtcDateTime))
+        {
+            results.AddRange(await FetchUrlAsync(source, url, cancellationToken));
+        }
+
+        return results.DistinctBy(x => x.ExternalId).ToList();
+    }
+
+    private async Task<IReadOnlyList<SourceItem>> FetchUrlAsync(
+        Source source,
+        string url,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.UserAgent.ParseAdd("RadarInnowacji/1.0 (prototyp)");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 

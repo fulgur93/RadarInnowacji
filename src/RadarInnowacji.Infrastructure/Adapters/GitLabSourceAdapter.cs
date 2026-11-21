@@ -7,16 +7,41 @@ using RadarInnowacji.Core.Models;
 
 namespace RadarInnowacji.Infrastructure.Adapters;
 
-/// <summary>Adapter dla API GitLab Projects.</summary>
-public sealed class GitLabSourceAdapter(HttpClient httpClient) : ISourceAdapter
+/// <summary>
+/// Adapter dla API GitLab Projects (gitlab.com lub inna instancja, np. uczelniana).
+/// Gdy źródło ma zapytanie (klucz "query" w konfiguracji), adapter sam buduje adresy wyszukiwania.
+/// </summary>
+public sealed class GitLabSourceAdapter(HttpClient httpClient, TimeProvider? timeProvider = null) : ISourceAdapter
 {
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+
     public SourceType SourceType => SourceType.GitLabApi;
 
     public async Task<IReadOnlyList<SourceItem>> FetchAsync(
         Source source,
         CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, source.Url);
+        var query = SourceConfiguration.ReadRepositoryQuery(source.Configuration);
+        if (query is null || !query.HasSearchTerms)
+        {
+            return await FetchUrlAsync(source, source.Url, cancellationToken);
+        }
+
+        var results = new List<SourceItem>();
+        foreach (var url in RepositorySearchUrlBuilder.BuildGitLab(source.Url, query, _time.GetUtcNow().UtcDateTime))
+        {
+            results.AddRange(await FetchUrlAsync(source, url, cancellationToken));
+        }
+
+        return results.DistinctBy(x => x.ExternalId).ToList();
+    }
+
+    private async Task<IReadOnlyList<SourceItem>> FetchUrlAsync(
+        Source source,
+        string url,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         var token = AdapterHelpers.GetConfigurationValue(source, "token");

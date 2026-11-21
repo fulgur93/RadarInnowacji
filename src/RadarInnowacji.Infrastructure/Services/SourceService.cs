@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using RadarInnowacji.Core.Entities;
 using RadarInnowacji.Core.Enums;
@@ -27,7 +26,8 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
         int scanIntervalMinutes,
         bool isActive,
         string? token,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        RepositoryQuery? repositoryQuery = null)
     {
         name = name.Trim();
         url = url.Trim();
@@ -47,6 +47,8 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
             throw new ArgumentException("Wybrany typ źródła nie jest obsługiwany.", nameof(sourceType));
         }
 
+        var query = repositoryQuery is null ? null : ValidateRepositoryQuery(sourceType, repositoryQuery);
+
         var exists = await db.Sources.AnyAsync(
             x => x.Name.ToLower() == name.ToLower(),
             cancellationToken);
@@ -65,9 +67,7 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
             IsActive = isActive,
             IsDemo = false,
             ScanIntervalMinutes = Math.Clamp(scanIntervalMinutes, 5, 10080),
-            Configuration = string.IsNullOrWhiteSpace(token)
-                ? "{}"
-                : JsonSerializer.Serialize(new Dictionary<string, string> { ["token"] = token.Trim() })
+            Configuration = SourceConfiguration.Create(token, query)
         };
 
         db.Sources.Add(source);
@@ -75,7 +75,12 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
         return source;
     }
 
-    public async Task UpdateAsync(int id, bool isActive, int scanIntervalMinutes, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(
+        int id,
+        bool isActive,
+        int scanIntervalMinutes,
+        CancellationToken cancellationToken = default,
+        RepositoryQuery? repositoryQuery = null)
     {
         var source = await db.Sources.FindAsync([id], cancellationToken);
         if (source is null)
@@ -83,8 +88,34 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
             return;
         }
 
+        if (repositoryQuery is not null)
+        {
+            var query = ValidateRepositoryQuery(source.SourceType, repositoryQuery);
+            source.Configuration = SourceConfiguration.WithRepositoryQuery(source.Configuration, query);
+        }
+
         source.IsActive = isActive;
         source.ScanIntervalMinutes = Math.Clamp(scanIntervalMinutes, 5, 10080);
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static RepositoryQuery ValidateRepositoryQuery(SourceType sourceType, RepositoryQuery repositoryQuery)
+    {
+        if (sourceType is not (SourceType.GitHubApi or SourceType.GitLabApi))
+        {
+            throw new ArgumentException(
+                "Zapytanie repozytoriów jest dostępne tylko dla źródeł GitHub i GitLab.",
+                nameof(repositoryQuery));
+        }
+
+        var query = repositoryQuery.Normalize();
+        if (!query.HasSearchTerms)
+        {
+            throw new ArgumentException(
+                "Podaj przynajmniej jedno słowo kluczowe lub temat.",
+                nameof(repositoryQuery));
+        }
+
+        return query;
     }
 }

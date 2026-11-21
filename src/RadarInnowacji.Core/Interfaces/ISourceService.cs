@@ -1,5 +1,6 @@
 using RadarInnowacji.Core.Entities;
 using RadarInnowacji.Core.Enums;
+using RadarInnowacji.Core.Models;
 
 namespace RadarInnowacji.Core.Interfaces;
 
@@ -15,6 +16,14 @@ public interface ISourceService
         int scanIntervalMinutes,
         bool isActive,
         string? token,
-        CancellationToken cancellationToken = default);
-    Task UpdateAsync(int id, bool isActive, int scanIntervalMinutes, CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        RepositoryQuery? repositoryQuery = null);
+
+    /// <param name="repositoryQuery">Nowe zapytanie radaru repozytoriów; null = bez zmian.</param>
+    Task UpdateAsync(
+        int id,
+        bool isActive,
+        int scanIntervalMinutes,
+        CancellationToken cancellationToken = default,
+        RepositoryQuery? repositoryQuery = null);
 }
