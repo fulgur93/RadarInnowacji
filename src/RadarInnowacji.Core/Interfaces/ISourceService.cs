@@ -17,13 +17,16 @@ public interface ISourceService
         bool isActive,
         string? token,
         CancellationToken cancellationToken = default,
-        RepositoryQuery? repositoryQuery = null);
+        RepositoryQuery? repositoryQuery = null,
+        KickstarterQuery? kickstarterQuery = null);
 
     /// <param name="repositoryQuery">Nowe zapytanie radaru repozytoriów; null = bez zmian.</param>
+    /// <param name="kickstarterQuery">Nowe zapytanie Kickstartera; null = bez zmian.</param>
     Task UpdateAsync(
         int id,
         bool isActive,
         int scanIntervalMinutes,
         CancellationToken cancellationToken = default,
-        RepositoryQuery? repositoryQuery = null);
+        RepositoryQuery? repositoryQuery = null,
+        KickstarterQuery? kickstarterQuery = null);
 }

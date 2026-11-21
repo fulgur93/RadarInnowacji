@@ -179,4 +179,29 @@ public class SourceAdapterTests
         Assert.Equal("Nowy prototyp czujnika powietrza", item.Title);
         Assert.Equal("https://example.org/news/1", item.SourceUrl);
     }
+
+    [Fact]
+    public async Task HtmlAdapter_PomijaNawigacjeICzytaNaglowekZOgloszenia()
+    {
+        var source = SourceTestFactory.Create(SourceType.HtmlPage, "https://example.org/projekty");
+        const string html =
+            """
+            <html><body>
+              <nav><ul><li><a href="/kontakt">Bardzo długi link nawigacyjny</a></li></ul></nav>
+              <div class="list-news">
+                <a title="Studenci zbudowali rower z rekuperacją" href="/news/1">
+                  <article><h2>Studenci zbudowali rower z rekuperacją</h2><p>Opis projektu</p></article>
+                </a>
+              </div>
+              <div id="pageFooter"><a href="/prywatnosc">Polityka prywatności serwisu</a></div>
+            </body></html>
+            """;
+        var adapter = new HtmlPageSourceAdapter(new HttpClient(new FakeHttpMessageHandler(_ => FakeHttpMessageHandler.Html(html))));
+
+        var items = await adapter.FetchAsync(source);
+
+        var item = Assert.Single(items);
+        Assert.Equal("Studenci zbudowali rower z rekuperacją", item.Title);
+        Assert.Equal("https://example.org/news/1", item.SourceUrl);
+    }
 }

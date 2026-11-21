@@ -1,0 +1,79 @@
+@using RadarInnowacji.Infrastructure.Adapters
+
+@* Pola wyszukiwania kampanii Kickstartera wraz z podglądem adresów, które wywoła adapter. *@
+
+<label class="form-label form-label-sm">Słowa kluczowe (rozdzielone przecinkami)</label>
+<textarea class="form-control form-control-sm mb-2" rows="3" @bind="Form.Keywords" @bind:event="oninput"></textarea>
+<label class="form-label form-label-sm">Kategorie (identyfikatory, rozdzielone przecinkami)</label>
+<select class="form-select form-select-sm mb-1" @onchange="DodajKategorie">
+    <option value="">Dodaj kategorię z listy...</option>
+    @foreach (var category in KickstarterQueryForm.CategoriesAvailable)
+    {
+        <option value="@category.Id">@category.Name (@category.Id)</option>
+    }
+</select>
+<input class="form-control form-control-sm mb-2" @bind="Form.Categories" @bind:event="oninput" placeholder="np. 16 (Technologia)" />
+<label class="form-label form-label-sm">Stan kampanii</label>
+<select class="form-select form-select-sm mb-2" @bind="Form.State">
+    @foreach (var state in KickstarterQuery.AllowedStates)
+    {
+        <option value="@state">@KickstarterQueryForm.StateLabel(state)</option>
+    }
+</select>
+<label class="form-label form-label-sm">Sortowanie</label>
+<select class="form-select form-select-sm mb-2" @bind="Form.Sort">
+    @foreach (var sort in KickstarterQuery.AllowedSorts)
+    {
+        <option value="@sort">@KickstarterQueryForm.SortLabel(sort)</option>
+    }
+</select>
+<label class="form-label form-label-sm">Kampanie rozpoczęte w ostatnich (dni)</label>
+<input type="number" class="form-control form-control-sm mb-2" @bind="Form.LaunchedWithinDays" @bind:event="oninput"
+       min="@KickstarterQuery.MinDays" max="@KickstarterQuery.MaxDays" />
+
+@{
+    var urls = KickstarterSearchUrlBuilder.SearchUrls(SourceUrl ?? string.Empty, Form.ToQuery());
+}
+<div class="small text-muted mb-2">
+    @if (urls.Count == 0)
+    {
+        <span class="text-danger">Podaj przynajmniej jedno słowo kluczowe lub kategorię.</span>
+    }
+    else
+    {
+        <span>Zapytań na skan: @urls.Count (po 12 wyników na stronę, bez sortowania po popularności).</span>
+        <details>
+            <summary>Podgląd adresów</summary>
+            @foreach (var url in urls)
+            {
+                <div class="text-break font-monospace" style="font-size: .7rem">@url</div>
+            }
+        </details>
+    }
+</div>
+<p class="small text-muted mb-2">
+    Kickstarter udostępnia publiczne wyszukiwanie bez klucza API, ale może blokować automatyczne
+    zapytania z niektórych sieci (HTTP 403). Błąd jest zapisywany w historii skanowania.
+</p>
+
+@code {
+    [Parameter, EditorRequired] public KickstarterQueryForm Form { get; set; } = null!;
+    [Parameter] public string? SourceUrl { get; set; }
+
+    private void DodajKategorie(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var ids = KickstarterQuery.ParseCategoryIds(Form.Categories).ToList();
+        if (!ids.Contains(int.Parse(value)))
+        {
+            ids.Add(int.Parse(value));
+        }
+
+        Form.Categories = string.Join(", ", ids.Take(KickstarterQuery.MaxCategories));
+    }
+}

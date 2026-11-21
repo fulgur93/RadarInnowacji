@@ -24,6 +24,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IDiscoveryService, DiscoveryService>();
         services.AddScoped<ISourceService, SourceService>();
         services.AddScoped<IDemoDataService, DemoDataSeeder>();
+        services.AddScoped<IPermanentSourcesSeeder, PermanentSourcesSeeder>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IScanHistoryService, ScanHistoryService>();
         services.AddScoped<IScanService, ScanService>();
@@ -49,6 +50,10 @@ public static class InfrastructureServiceCollectionExtensions
             provider.GetRequiredService<IOptions<RadarOptions>>().Value.Repositories));
         services.AddTransient<ISourceAdapter>(provider => new HuggingFaceSourceAdapter(
             provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources")));
+        services.AddTransient<ISourceAdapter>(provider => new KickstarterSourceAdapter(
+            provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources"),
+            TimeProvider.System,
+            provider.GetRequiredService<IOptions<RadarOptions>>().Value.Kickstarter));
         services.AddTransient<ISourceAdapter>(provider => new DspaceSourceAdapter(
             provider.GetRequiredService<IHttpClientFactory>().CreateClient("RadarSources")));
         services.AddTransient<ISourceAdapter>(provider => new RssAtomSourceAdapter(

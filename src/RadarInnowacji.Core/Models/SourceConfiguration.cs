@@ -8,11 +8,15 @@ public static class SourceConfiguration
 {
     public const string TokenKey = "token";
     public const string QueryKey = "query";
+    public const string KickstarterQueryKey = "kickstarterQuery";
     public const string CursorsKey = "cursors";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public static string Create(string? token, RepositoryQuery? query)
+    public static string Create(
+        string? token,
+        RepositoryQuery? query,
+        KickstarterQuery? kickstarterQuery = null)
     {
         var root = new JsonObject();
         if (!string.IsNullOrWhiteSpace(token))
@@ -23,6 +27,11 @@ public static class SourceConfiguration
         if (query is not null)
         {
             root[QueryKey] = JsonSerializer.SerializeToNode(query, JsonOptions);
+        }
+
+        if (kickstarterQuery is not null)
+        {
+            root[KickstarterQueryKey] = JsonSerializer.SerializeToNode(kickstarterQuery, JsonOptions);
         }
 
         return root.ToJsonString();
@@ -42,6 +51,20 @@ public static class SourceConfiguration
         }
 
         root[QueryKey] = newQuery;
+        return root.ToJsonString();
+    }
+
+    /// <summary>Podmienia zapytanie Kickstartera, zachowując pozostałe klucze konfiguracji.</summary>
+    public static string WithKickstarterQuery(string? configuration, KickstarterQuery query)
+    {
+        var root = ParseObject(configuration);
+        var newQuery = JsonSerializer.SerializeToNode(query, JsonOptions);
+        if (!JsonNode.DeepEquals(root[KickstarterQueryKey], newQuery))
+        {
+            root.Remove(CursorsKey);
+        }
+
+        root[KickstarterQueryKey] = newQuery;
         return root.ToJsonString();
     }
 
@@ -110,6 +133,32 @@ public static class SourceConfiguration
             }
 
             return query.Deserialize<RepositoryQuery>(JsonOptions)?.Normalize();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Zwraca zapytanie Kickstartera albo null, gdy źródło go nie ma.</summary>
+    public static KickstarterQuery? ReadKickstarterQuery(string? configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(configuration);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty(KickstarterQueryKey, out var query) ||
+                query.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            return query.Deserialize<KickstarterQuery>(JsonOptions)?.Normalize();
         }
         catch (JsonException)
         {

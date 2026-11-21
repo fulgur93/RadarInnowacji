@@ -9,6 +9,7 @@ public enum SourceType
     GitHubApi,
     GitLabApi,
     HuggingFaceApi,
+    KickstarterApi,
     HtmlPage,
     Manual,
     Demo

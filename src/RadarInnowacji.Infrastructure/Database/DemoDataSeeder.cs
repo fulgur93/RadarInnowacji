@@ -12,7 +12,7 @@ namespace RadarInnowacji.Infrastructure.Database;
 public sealed class DemoDataSeeder(RadarDbContext db) : IDemoDataService
 {
     private static readonly int[] AgeDays =
-        [2, 5, 12, 20, 35, 60, 95, 150, 220, 3, 8, 18, 40, 75, 110, 180, 260, 400, 1, 14, 28, 55, 85, 130, 210, 330, 500];
+        [2, 5, 12, 20, 35, 60, 95, 150, 220, 3, 8, 18, 40, 75, 110, 180, 260, 400, 1, 14, 28, 55, 85, 130, 210, 330, 500, 25];
 
     public async Task<bool> HasDemoDataAsync(CancellationToken cancellationToken = default) =>
         await db.Sources.AnyAsync(x => x.IsDemo, cancellationToken);
@@ -67,7 +67,8 @@ public sealed class DemoDataSeeder(RadarDbContext db) : IDemoDataService
             ("Hugging Face – modele (DEMO)", RadarKind.Repozytorium, SourceType.HuggingFaceApi, FetchMethod.Api, true),
             ("Portal technologiczny (DEMO)", RadarKind.Wiadomosci, SourceType.Rss, FetchMethod.Rss, true),
             ("Aktualności uczelni (DEMO)", RadarKind.Wiadomosci, SourceType.HtmlPage, FetchMethod.Html, true),
-            ("Serwis informacji naukowej (DEMO)", RadarKind.Wiadomosci, SourceType.Atom, FetchMethod.Atom, false)
+            ("Serwis informacji naukowej (DEMO)", RadarKind.Wiadomosci, SourceType.Atom, FetchMethod.Atom, false),
+            ("Kickstarter – przykładowa kampania (DEMO)", RadarKind.Crowdfunding, SourceType.KickstarterApi, FetchMethod.Api, true)
         ];
 
         return specs.Select((spec, index) => new Source
@@ -117,9 +118,11 @@ public sealed class DemoDataSeeder(RadarDbContext db) : IDemoDataService
             ("Symulacja fizyki trafia do klas", "Aktualność o wdrożeniu interaktywnej symulacji w szkołach.", "Dział prasy", "Aktualności uczelni (DEMO)", ["Edukacja", "Web"]),
             ("Czujniki gleby monitorują uprawy", "Opis projektu czujników wilgotności gleby opracowanego na uczelni.", "A. Nowak", "AGH", ["Czujniki", "Energia"]),
             ("soil-sense-monitor", "Repozytorium z oprogramowaniem czujników gleby i prostym serwerem danych.", "agri-iot", "Hugging Face", ["IoT", "Czujniki"]),
-            ("Rolnicy testują inteligentne czujniki", "Wiadomość o pilotażu systemu monitorowania gleby w gospodarstwach.", "Redakcja", "Portal technologiczny (DEMO)", ["IoT", "Edukacja"])
+            ("Rolnicy testują inteligentne czujniki", "Wiadomość o pilotażu systemu monitorowania gleby w gospodarstwach.", "Redakcja", "Portal technologiczny (DEMO)", ["IoT", "Edukacja"]),
+            ("Kampania: czujnik wilgotności gleby", "Przykładowa kampania crowdfundingowa rozwoju niskokosztowego czujnika gleby.", "A. Maker", "Kickstarter (DEMO)", ["IoT", "Czujniki"])
         ];
 
+        var cykliczneZrodla = sources.Where(x => x.Radar != RadarKind.Crowdfunding).ToList();
         var discoveries = new List<Discovery>(specs.Length);
         for (var i = 0; i < specs.Length; i++)
         {
@@ -140,10 +143,12 @@ public sealed class DemoDataSeeder(RadarDbContext db) : IDemoDataService
                     : string.Empty,
                 ContentLength = number == 1 ? 12340 : number <= 5 ? spec.Description.Length : 0,
                 IsContentTruncated = number == 1,
-                Source = sources[i % sources.Count],
+                Source = i == specs.Length - 1
+                    ? sources.Single(x => x.Radar == RadarKind.Crowdfunding)
+                    : cykliczneZrodla[i % cykliczneZrodla.Count],
                 SourceUrl = $"https://example.org/demo/material/{number}",
                 ExternalId = $"demo-{number:D3}",
-                PublishedAt = number % 7 == 0 ? null : now.AddDays(-(age + 2)),
+                PublishedAt = number % 7 == 0 && i != specs.Length - 1 ? null : now.AddDays(-(age + 2)),
                 EarliestKnownDate = number % 3 == 0 ? now.AddDays(-(age + 45)) : null,
                 LastActivityAt = number % 9 == 0 ? null : now.AddDays(-Math.Max(0, age - 4)),
                 DiscoveredAt = now.AddDays(-age),

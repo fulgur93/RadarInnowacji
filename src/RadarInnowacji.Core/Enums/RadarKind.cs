@@ -5,5 +5,6 @@ public enum RadarKind
 {
     Uczelnia = 0,
     Repozytorium = 1,
-    Wiadomosci = 2
+    Wiadomosci = 2,
+    Crowdfunding = 3
 }

@@ -9,7 +9,7 @@
 <div class="page-header">
     <div>
         <h1>Źródła danych</h1>
-        <p class="page-subtitle">Konfiguracja źródeł dla wszystkich trzech radarów.</p>
+        <p class="page-subtitle">Konfiguracja źródeł dla wszystkich radarów.</p>
     </div>
     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OdswiezAsync">Odśwież</button>
 </div>
@@ -48,6 +48,10 @@
                                         @if (SourceConfiguration.ReadRepositoryQuery(source.Configuration) is { HasSearchTerms: true } zapytanie)
                                         {
                                             <div class="small text-muted">@OpisZapytania(zapytanie)</div>
+                                        }
+                                        @if (SourceConfiguration.ReadKickstarterQuery(source.Configuration) is { HasSearchTerms: true } zapytanieKs)
+                                        {
+                                            <div class="small text-muted">@OpisZapytania(zapytanieKs)</div>
                                         }
                                         @if (!string.IsNullOrEmpty(source.LastError))
                                         {
@@ -99,6 +103,10 @@
                     {
                         <RepositoryQueryFields Form="edytowanyFormularz" SourceType="edytowany.SourceType" SourceUrl="@edytowany.Url" />
                     }
+                    @if (edytowanyFormularzKs is not null)
+                    {
+                        <KickstarterQueryFields Form="edytowanyFormularzKs" SourceUrl="@edytowany.Url" />
+                    }
                     <div class="d-grid mt-3">
                         <button type="button" class="btn btn-sm btn-primary" @onclick="ZapiszAsync">Zapisz</button>
                     </div>
@@ -136,6 +144,14 @@
                         adresy wyszukiwania są budowane z poniższego zapytania.
                     </p>
                     <RepositoryQueryFields Form="nowyFormularz" SourceType="nowyTyp" SourceUrl="@nowyUrl" />
+                }
+                @if (KickstarterQueryForm.Supports(nowyTyp))
+                {
+                    <p class="small text-muted mb-2">
+                        Adres URL to serwis Kickstartera; wyszukiwanie odbywa się przez jego publiczny
+                        endpoint i poniższe zapytanie.
+                    </p>
+                    <KickstarterQueryFields Form="nowyFormularzKs" SourceUrl="@nowyUrl" />
                 }
                 <label class="form-label form-label-sm">Token API (opcjonalnie)</label>
                 <input type="password" class="form-control form-control-sm mb-2" @bind="nowyToken" placeholder="token dostępu" />
@@ -184,6 +200,8 @@
     private bool nowyAktywny = true;
     private RepositoryQueryForm nowyFormularz = new();
     private RepositoryQueryForm? edytowanyFormularz;
+    private KickstarterQueryForm nowyFormularzKs = new();
+    private KickstarterQueryForm? edytowanyFormularzKs;
 
     protected override async Task OnInitializedAsync() => await OdswiezAsync();
 
@@ -204,6 +222,10 @@
                 ? RepositoryQueryForm.From(
                     SourceConfiguration.ReadRepositoryQuery(edytowany.Configuration) ?? new RepositoryQueryForm().ToQuery())
                 : null;
+            edytowanyFormularzKs = KickstarterQueryForm.Supports(edytowany.SourceType)
+                ? KickstarterQueryForm.From(
+                    SourceConfiguration.ReadKickstarterQuery(edytowany.Configuration) ?? new KickstarterQueryForm().ToQuery())
+                : null;
         }
     }
 
@@ -216,7 +238,8 @@
                 edytowanyId.Value,
                 aktywne,
                 interwal,
-                repositoryQuery: edytowanyFormularz?.ToQuery());
+                repositoryQuery: edytowanyFormularz?.ToQuery(),
+                kickstarterQuery: edytowanyFormularzKs?.ToQuery());
         }
         catch (ArgumentException exception)
         {
@@ -228,6 +251,7 @@
         edytowany = null;
         edytowanyId = null;
         edytowanyFormularz = null;
+        edytowanyFormularzKs = null;
         await OdswiezAsync();
     }
 
@@ -243,13 +267,15 @@
                 nowyInterwal,
                 nowyAktywny,
                 nowyToken,
-                repositoryQuery: RepositoryQueryForm.Supports(nowyTyp) ? nowyFormularz.ToQuery() : null);
+                repositoryQuery: RepositoryQueryForm.Supports(nowyTyp) ? nowyFormularz.ToQuery() : null,
+                kickstarterQuery: KickstarterQueryForm.Supports(nowyTyp) ? nowyFormularzKs.ToQuery() : null);
 
             komunikat = $"Dodano źródło {source.Name}.";
             nowaNazwa = string.Empty;
             nowyUrl = string.Empty;
             nowyToken = string.Empty;
             nowyFormularz = new RepositoryQueryForm();
+            nowyFormularzKs = new KickstarterQueryForm();
             ZmienionoTyp();
         }
         catch (Exception exception)
@@ -262,17 +288,39 @@
 
     private void ZmienionoTyp()
     {
-        var domyslne = RepositoryQueryForm.DefaultUrl(nowyTyp);
-        var poprzednieDomyslne = Enum.GetValues<SourceType>().Select(RepositoryQueryForm.DefaultUrl);
+        var domyslne = DefaultUrl(nowyTyp);
+        var poprzednieDomyslne = Enum.GetValues<SourceType>().Select(DefaultUrl);
         if (string.IsNullOrWhiteSpace(nowyUrl) || poprzednieDomyslne.Contains(nowyUrl))
         {
             nowyUrl = domyslne;
         }
 
-        if (RepositoryQueryForm.Supports(nowyTyp))
+        if (KickstarterQueryForm.Supports(nowyTyp))
+        {
+            nowyRadar = RadarKind.Crowdfunding;
+        }
+        else if (RepositoryQueryForm.Supports(nowyTyp))
         {
             nowyRadar = RadarKind.Repozytorium;
         }
+    }
+
+    private static string DefaultUrl(SourceType typ) => KickstarterQueryForm.Supports(typ)
+        ? KickstarterQueryForm.DefaultUrl(typ)
+        : RepositoryQueryForm.DefaultUrl(typ);
+
+    private static string OpisZapytania(KickstarterQuery query)
+    {
+        var czesci = new List<string>();
+        if (query.Keywords.Count > 0) czesci.Add($"słowa: {string.Join(", ", query.Keywords)}");
+        if (query.CategoryIds.Count > 0)
+        {
+            czesci.Add($"kategorie: {string.Join(", ", query.CategoryIds.Select(KickstarterCategories.Label))}");
+        }
+
+        czesci.Add(KickstarterQueryForm.StateLabel(query.State));
+        czesci.Add($"rozpoczęte w ostatnich {query.LaunchedWithinDays} dni");
+        return string.Join(" · ", czesci);
     }
 
     private static string OpisZapytania(RepositoryQuery query)
@@ -322,6 +370,7 @@
         edytowany = null;
         edytowanyId = null;
         edytowanyFormularz = null;
+        edytowanyFormularzKs = null;
         await OdswiezAsync();
     }
 }

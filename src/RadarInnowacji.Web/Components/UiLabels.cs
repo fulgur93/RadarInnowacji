@@ -12,6 +12,7 @@ public static class UiLabels
         RadarKind.Uczelnia => "Radar uczelni",
         RadarKind.Repozytorium => "Radar repozytoriów",
         RadarKind.Wiadomosci => "Radar wiadomości",
+        RadarKind.Crowdfunding => "Radar portali crowdfundingowych",
         _ => radar.ToString()
     };
 
@@ -62,6 +63,7 @@ public static class UiLabels
         SourceType.GitHubApi => "GitHub API",
         SourceType.GitLabApi => "GitLab API",
         SourceType.HuggingFaceApi => "Hugging Face API",
+        SourceType.KickstarterApi => "Kickstarter (wyszukiwanie)",
         SourceType.HtmlPage => "Strona HTML",
         SourceType.Manual => "Wpis ręczny",
         SourceType.Demo => "Dane demonstracyjne",

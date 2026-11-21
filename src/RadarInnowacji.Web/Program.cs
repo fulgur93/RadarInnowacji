@@ -33,6 +33,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddRadarInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<DatabaseMigrationJob>();
+builder.Services.AddHostedService<PermanentSourcesSeedJob>();
 builder.Services.AddHostedService<BackgroundScanJob>();
 
 var app = builder.Build();

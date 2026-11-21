@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using RadarInnowacji.Core.Entities;
+using RadarInnowacji.Core.Enums;
+using RadarInnowacji.Core.Interfaces;
 using RadarInnowacji.Infrastructure;
 using RadarInnowacji.Infrastructure.Configuration;
 using RadarInnowacji.Infrastructure.Database;
@@ -28,5 +31,23 @@ public class ServiceRegistrationTests
 
         Assert.NotNull(provider.GetService<RadarDbContext>());
         Assert.Equal(5099, provider.GetRequiredService<IOptions<RadarOptions>>().Value.Port);
+    }
+
+    [Fact]
+    public void AddRadarInfrastructure_RejestrujeAdapterKickstartera()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRadarInfrastructure(configuration);
+
+        using var provider = services.BuildServiceProvider();
+        var resolver = provider.GetRequiredService<ISourceAdapterResolver>();
+        var source = new Source { SourceType = SourceType.KickstarterApi };
+
+        var adapter = resolver.Resolve(source);
+
+        Assert.NotNull(adapter);
+        Assert.Equal(SourceType.KickstarterApi, adapter.SourceType);
     }
 }

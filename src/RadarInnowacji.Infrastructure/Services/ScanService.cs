@@ -58,9 +58,14 @@ public sealed class ScanService(
                         $"Brak adaptera dla typu źródła {source.SourceType}.");
                 }
 
-                var maxItems = source.SourceType is SourceType.GitHubApi or SourceType.GitLabApi
-                    ? Math.Clamp(options.Value.Repositories.MaxItemsPerScan, 1, 2000)
-                    : Math.Clamp(options.Value.Scanning.MaxItemsPerSource, 1, 500);
+                var maxItems = source.SourceType switch
+                {
+                    SourceType.GitHubApi or SourceType.GitLabApi =>
+                        Math.Clamp(options.Value.Repositories.MaxItemsPerScan, 1, 2000),
+                    SourceType.KickstarterApi =>
+                        Math.Clamp(options.Value.Kickstarter.MaxItemsPerScan, 1, 500),
+                    _ => Math.Clamp(options.Value.Scanning.MaxItemsPerSource, 1, 500)
+                };
                 var fetched = await adapter.FetchResultAsync(source, maxItems, cancellationToken);
                 var limited = fetched.Items.Take(maxItems).ToList();
                 var added = 0;

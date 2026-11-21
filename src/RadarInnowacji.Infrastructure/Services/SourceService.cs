@@ -27,7 +27,8 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
         bool isActive,
         string? token,
         CancellationToken cancellationToken = default,
-        RepositoryQuery? repositoryQuery = null)
+        RepositoryQuery? repositoryQuery = null,
+        KickstarterQuery? kickstarterQuery = null)
     {
         name = name.Trim();
         url = url.Trim();
@@ -48,6 +49,7 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
         }
 
         var query = repositoryQuery is null ? null : ValidateRepositoryQuery(sourceType, repositoryQuery);
+        var kickstarter = kickstarterQuery is null ? null : ValidateKickstarterQuery(sourceType, kickstarterQuery);
 
         var exists = await db.Sources.AnyAsync(
             x => x.Name.ToLower() == name.ToLower(),
@@ -67,7 +69,7 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
             IsActive = isActive,
             IsDemo = false,
             ScanIntervalMinutes = Math.Clamp(scanIntervalMinutes, 5, 10080),
-            Configuration = SourceConfiguration.Create(token, query)
+            Configuration = SourceConfiguration.Create(token, query, kickstarter)
         };
 
         db.Sources.Add(source);
@@ -80,7 +82,8 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
         bool isActive,
         int scanIntervalMinutes,
         CancellationToken cancellationToken = default,
-        RepositoryQuery? repositoryQuery = null)
+        RepositoryQuery? repositoryQuery = null,
+        KickstarterQuery? kickstarterQuery = null)
     {
         var source = await db.Sources.FindAsync([id], cancellationToken);
         if (source is null)
@@ -92,6 +95,12 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
         {
             var query = ValidateRepositoryQuery(source.SourceType, repositoryQuery);
             source.Configuration = SourceConfiguration.WithRepositoryQuery(source.Configuration, query);
+        }
+
+        if (kickstarterQuery is not null)
+        {
+            var query = ValidateKickstarterQuery(source.SourceType, kickstarterQuery);
+            source.Configuration = SourceConfiguration.WithKickstarterQuery(source.Configuration, query);
         }
 
         source.IsActive = isActive;
@@ -114,6 +123,26 @@ public sealed class SourceService(RadarDbContext db) : ISourceService
             throw new ArgumentException(
                 "Podaj przynajmniej jedno słowo kluczowe lub temat.",
                 nameof(repositoryQuery));
+        }
+
+        return query;
+    }
+
+    private static KickstarterQuery ValidateKickstarterQuery(SourceType sourceType, KickstarterQuery kickstarterQuery)
+    {
+        if (sourceType is not SourceType.KickstarterApi)
+        {
+            throw new ArgumentException(
+                "Zapytanie Kickstartera jest dostępne tylko dla źródeł typu Kickstarter.",
+                nameof(kickstarterQuery));
+        }
+
+        var query = kickstarterQuery.Normalize();
+        if (!query.HasSearchTerms)
+        {
+            throw new ArgumentException(
+                "Podaj przynajmniej jedno słowo kluczowe lub kategorię Kickstartera.",
+                nameof(kickstarterQuery));
         }
 
         return query;

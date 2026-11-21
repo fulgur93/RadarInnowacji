@@ -40,16 +40,17 @@ public class DiscoveryServiceTests
 
         var page = await service.GetPageAsync(new DiscoveryFilter { PageSize = 100 });
 
-        Assert.Equal(27, page.TotalCount);
-        Assert.Equal(27, page.Items.Count);
+        Assert.Equal(28, page.TotalCount);
+        Assert.Equal(28, page.Items.Count);
         Assert.All(page.Items, item => Assert.True(item.IsDemo));
-        Assert.Equal(3, page.Items.Select(x => x.Radar).Distinct().Count());
+        Assert.Equal(4, page.Items.Select(x => x.Radar).Distinct().Count());
     }
 
     [Theory]
     [InlineData(RadarKind.Uczelnia, 9)]
     [InlineData(RadarKind.Repozytorium, 9)]
     [InlineData(RadarKind.Wiadomosci, 9)]
+    [InlineData(RadarKind.Crowdfunding, 1)]
     public async Task GetPageAsync_FiltrujeWedlutRadaru(RadarKind radar, int expectedCount)
     {
         using var database = new SqliteTestDatabase();

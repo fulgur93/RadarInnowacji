@@ -1,10 +1,13 @@
 # Radar Innowacji
 
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
-repozytoriach kodu źródłowego oraz wiadomościach internetowych.
+repozytoriach kodu źródłowego, wiadomościach internetowych oraz na portalach crowdfundingowych.
 
 **Status projektu: ETAP 2 – ADAPTERY ŹRÓDEŁ I SKANOWANIE W TLE (zaimplementowany, oczekuje na akceptację).**
 Etapy 0 i 1 zostały wcześniej zaakceptowane przez zamawiającego.
+Etap 3 (radar repozytoriów) jest w toku – dodano w nim moduł wyszukiwania Kickstartera,
+który na życzenie zamawiającego został przeniesiony do osobnego, czwartego radaru
+portali crowdfundingowych (zmiana wobec pierwotnie trójradarowego interfejsu z `src/MainJob.txt`).
 
 ## Stos technologiczny
 
@@ -81,7 +84,9 @@ nie musi wywoływać `dotnet ef database update`.
 | `Repositories:MaxRateLimitWaitSeconds` | `65` | Jak długo czekać na odnowienie limitu API; dłuższy limit kończy skan jako częściowy |
 | `Repositories:OverlapHours` | `2` | GitHub: ile ostatnich godzin sprawdzać ponownie (opóźnienie indeksowania) |
 | `Repositories:MaxDetailsPerScan` | `30` | Ile projektów na skan uzupełnić o README, języki i licencję (2–3 zapytania na projekt) |
-| `Repositories:FilterNoise` | `true` | Pomijanie forków, kopii, szablonów, list „awesome”, dotfiles, zadań z kursów i projektów do usunięcia |
+| `Repositories:FilterNoise` | `true` | Pomijanie forków, kopii, szablonów, list „awesome", dotfiles, zadań z kursów i projektów do usunięcia |
+| `Kickstarter:MaxItemsPerScan` | `120` | Maksymalna liczba kampanii zapisanych z jednego skanu źródła Kickstarter |
+| `Kickstarter:MaxPagesPerQuery` | `8` | Maksymalna liczba stron (po 12 wyników) jednego wyszukiwania Kickstartera |
 
 Zmienne środowiskowe nadpisują ustawienia uruchomieniowe:
 `RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`,
@@ -125,6 +130,93 @@ Wynik weryfikacji Etapu 2:
 - Etap 2 nie wymagał nowej migracji – wykorzystuje istniejące tabele `Sources`,
   `Discoveries` i `ScanHistory`.
 
+## Moduł wyszukiwania Kickstartera i radar portali crowdfundingowych (Etap 3)
+
+- nowy typ źródła `KickstarterApi` (metoda `Api`, radar portali crowdfundingowych) z adapterem korzystającym
+  z publicznego wyszukiwania `GET /discover/advanced?format=json` – bez klucza API i bez proxy,
+- zapytanie w konfiguracji źródła (`kickstarterQuery`): słowa kluczowe, identyfikatory kategorii
+  Kickstartera, stan kampanii (`live`, `upcoming`, `successful`, `failed`, `canceled`), sortowanie (`newest`,
+  `end_date`) oraz okno dat rozpoczęcia kampanii (1–365 dni),
+- formularz „Nowe źródło" i edycja źródła pokazują pola zapytania wraz z podglądem adresów
+  (12 wyników na stronę, wiele stron i wiele wyszukiwań w jednym skanie),
+- adapter filtruje wyniki starsze niż okno dat, deduplikuje kampanie w ramach skanu,
+  ogranicza liczbę stron i zapisuje kampanie jako odkrycia `Candidate` / „Oczekuje na AI",
+- informacje o kategorii, lokalizacji, stanie i finansowaniu trafiają do `RawContent` jako kontekst;
+  dane o finansowaniu nie wpływają na wybór projektów (brak sortowania po popularności),
+- błąd HTTP 403 jest zapisywany w `LastError` i historii skanowania z komunikatem wskazującym,
+  że adapter nie obchodzi ochrony serwisu,
+- osobna strona `/radar-crowdfunding` („Radar portali crowdfundingowych") w menu, na dashboardzie
+  i we wspólnym widoku odkryć; wybór typu `KickstarterApi` automatycznie ustawia ten radar,
+- jedno wyraźnie oznaczone (`DEMO`) odkrycie kampanii crowdfundingowej, dzięki któremu nowy radar
+  jest widoczny po załadowaniu danych przykładowych.
+
+Wynik weryfikacji modułu:
+
+- `dotnet build RadarInnowacji.sln -v minimal` – **0 błędów, 0 nowych ostrzeżeń**
+  (pozostają 3 wcześniejsze ostrzeżenia `xUnit1031` w `RepositoryDetailsTests`),
+- `dotnet test RadarInnowacji.sln --no-build` – **158 testów zaliczonych**
+  (142 jednostkowych + 16 integracyjnych, w tym przypadki dla `/radar-crowdfunding`
+  i stałych źródeł dostępnych po czystym starcie),
+- test runtime na `127.0.0.1:15194` ze świeżym katalogiem danych: strony `/`, `/zrodla`,
+  `/radar-uczelni`, `/radar-repozytoriow`, `/radar-wiadomosci`, `/radar-crowdfunding`,
+  `/odkrycia` i `/historia` zwróciły HTTP 200; nowy radar jest widoczny w menu
+  i na dashboardzie, lista typów źródła zawiera „Kickstarter (wyszukiwanie)", brak wpisów
+  `fail:`/`crit:` w logu, zamknięcie z sygnałem SIGTERM zostało odnotowane jako
+  `Application is shutting down...`.
+
+Znane ograniczenia modułu Kickstarter:
+
+- Kickstarter nie udostępnia oficjalnego publicznego API – używany jest endpoint, którego używa
+  jego własna strona. Z tego środowiska Kickstarter odpowiada HTTP 403 (ochrona Cloudflare),
+  więc pobieranie na żywo nie zostało tam zweryfikowane; parser, stronicowanie i obsługa błędu
+  403 są pokryte testami jednostkowymi na przykładowych odpowiedziach JSON.
+- Adapter nie omija zabezpieczeń ani blokad; aby sprawdzić integrację na żywo, należy uruchomić
+  aplikację w sieci, z której endpoint jest dostępny.
+- Skan nie zapisuje kursora przyrostowego: ponawia wyszukiwanie pierwszych stron w oknie dat
+  (dane idempotentne w ramach źródła dzięki `ExternalId`).
+- Lista głównych kategorii w formularzu jest pomocą dla użytkownika; można wpisać dowolny
+  identyfikator kategorii Kickstartera.
+- Czwarty radar to rozszerzenie interfejsu względem trójradarowego opisu w `src/MainJob.txt`,
+  wprowadzone na wyraźne życzenie zamawiającego. Nie wymagało zmiany modelu danych ani nowej
+  migracji (`RadarKind` jest zapisywany jako liczba całkowita).
+
+## Stałe, rzeczywiste źródła dostępne po czystej instalacji
+
+Bezpośrednio po uruchomieniu na pustej bazie (jeszcze przed pierwszym skanowaniem) startupowy
+`PermanentSourcesSeedJob` – uruchamiany po `DatabaseMigrationJob`, a przed `BackgroundScanJob` –
+dodaje cztery aktywne źródła. Nie są one oznaczone jako `DEMO` i nie wymagają importu ani
+ręcznej konfiguracji:
+
+| Źródło | Radar | Typ | Adres |
+| --- | --- | --- | --- |
+| Kickstarter – wyszukiwanie projektów | portale crowdfundingowe | `KickstarterApi` | `https://www.kickstarter.com` |
+| AGH – projekty studenckie | uczelnie | `HtmlPage` | `https://www.agh.edu.pl/slowa-kluczowe/projekty-studenckie` |
+| Politechnika Gdańska – Uczelnie Przyszłości | uczelnie | `HtmlPage` | `https://pg.edu.pl/studenci/projekty/uczelnie-przyszlosci/aktualnosci` |
+| UAM WMiI – studenckie projekty badawczo-rozwojowe | uczelnie | `HtmlPage` | `https://wmi.amu.edu.pl/wydzial/projekty/studenckie-projekty-badawczo-rozwojowe` |
+
+Seeder dodaje tylko brakujące źródła (porównanie nazw bez uwzględniania wielkości liter),
+więc powtórne uruchomienia nie duplikują wpisów i nie nadpisują zmian użytkownika (np. wyłączonego
+źródła lub zmienionego adresu). Usunięte źródło zostanie uzupełnione przy następnym starcie.
+Nie jest wymagana nowa migracja – `RadarKind` jest zapisywany jako liczba całkowita.
+
+Adapter HTML został przy okazji uogólniony: pomija linki z menu, nagłówka, stopki i nawigacji,
+odrzuca odnośniki tylko do kotwicy oraz czyta tytuł z atrybutu `title` albo nagłówka otaczającego
+odnośnik. Dzięki temu z rzeczywistych stron pobierane są ogłoszenia o projektach, a nie elementy
+menu. Jednorazowa weryfikacja na żywo (poza zestawem testów) dała: AGH 12 ogłoszeń o projektach
+studenckich, Politechnika Gdańska 12 aktualności „Uczelnie Przyszłości”, UAM WMiI 18 projektów.
+Źródło Kickstartera pozostaje rzeczywiste, ale w tym środowisku serwis zwraca HTTP 403 (ochrona
+Cloudflare) – patrz ograniczenia powyżej.
+
+Weryfikacja:
+
+- `dotnet build RadarInnowacji.sln -v minimal` – **0 błędów**, tylko 3 wcześniejsze ostrzeżenia
+  `xUnit1031` w `RepositoryDetailsTests`,
+- `dotnet test RadarInnowacji.sln` – **158 testów zaliczonych** (142 jednostkowe + 16 integracyjnych),
+  w tym testy seedera (czysta baza, idempotencja, brak nadpisywania zmian), adapteru HTML
+  oraz test hosta sprawdzający obecność czterech stałych źródeł na `/zrodla`,
+- logi startu ze świeżego katalogu zawierają `Migracje bazy danych zostały zastosowane.`
+  oraz `Stałe źródła są gotowe (nowych: 4).`
+
 ## Co działa w Etapie 0 (zaakceptowanym)
 
 - uruchamialna aplikacja Blazor Web App z Interactive Server,
@@ -139,8 +231,8 @@ Wynik weryfikacji Etapu 2:
 - jednoznaczny model danych: `Source`, `Discovery`, `InnovationProject`, `DiscoveryProject`,
   `Category`, `ProjectCategory`, `ScanHistory`, `AiAnalysisRecord`,
 - migracja `InitialCreate` z indeksami i relacjami; kontekst EF Core nadal przygotowany do zmiany dostawcy na PostgreSQL,
-- w pełni aktywne menu i strony: dashboard, trzy radary, wszystkie odkrycia, szczegóły,
-  źródła, historia skanowania, kategorie i ustawienia,
+- w pełni aktywne menu i strony: dashboard, cztery radary (w tym crowdfundingowy), wszystkie
+  odkrycia, szczegóły, źródła, historia skanowania, kategorie i ustawienia,
 - dashboard z KPI, liczbnościami radarów, aktywnością (SVG), najpopularniejszymi kategoriami
   i najnowszymi odkryciami,
 - wspólny eksplorator odkryć z filtrami: tekst, pole daty i zakres, kategoria, źródło, status,
@@ -148,8 +240,8 @@ Wynik weryfikacji Etapu 2:
 - szczegóły odkrycia z metadanymi, kategoriami, historią analiz AI, podobnymi odkryciami
   i akcją „Oznacz jako zweryfikowane”,
 - zarządzanie źródłami: lista, edycja flagi aktywności i interwału skanowania,
-- **27 wyraźnie oznaczonych (`DEMO`) przykładowych odkryć** dla trzech radarów,
-  9 źródeł, 8 kategorii, 10 projektów, 9 skanów i 4 przykładowe analizy AI,
+- **28 wyraźnie oznaczonych (`DEMO`) przykładowych odkryć** dla czterech radarów,
+  10 źródeł, 8 kategorii, 10 projektów, 10 skanów i 4 przykładowe analizy AI,
 - przyciski „Załaduj przykłady” i „Usuń przykłady” na stronie Źródła; czyszczenie usuwa
   wyłącznie wiersze oznaczone jako `IsDemo`,
 - polskie etykiety i formatowanie dat w całym interfejsie.

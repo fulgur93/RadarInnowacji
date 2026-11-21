@@ -1,3 +1,4 @@
+using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using RadarInnowacji.Core.Entities;
 using RadarInnowacji.Core.Enums;
@@ -9,6 +10,9 @@ namespace RadarInnowacji.Infrastructure.Adapters;
 /// <summary>Adapter dla zwykłych stron HTML z listą aktualności.</summary>
 public sealed class HtmlPageSourceAdapter(HttpClient httpClient) : ISourceAdapter
 {
+    private const int MaxItems = 100;
+    private const int MinTitleLength = 12;
+
     public SourceType SourceType => SourceType.HtmlPage;
 
     public async Task<IReadOnlyList<SourceItem>> FetchAsync(
@@ -22,32 +26,47 @@ public sealed class HtmlPageSourceAdapter(HttpClient httpClient) : ISourceAdapte
         var items = new List<SourceItem>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        var links = document.QuerySelectorAll(
-            "article a[href], main a[href], .news a[href], .aktualnosc a[href], li a[href], h2 a[href], h3 a[href]");
-
+        var links = document.QuerySelectorAll("a[href]");
         foreach (var link in links)
         {
-            if (items.Count >= 100)
+            if (items.Count >= MaxItems)
             {
                 break;
             }
 
-            var title = AdapterHelpers.CleanText(link.TextContent);
-            if (title.Length < 12)
+            if (IsNavigationOrFooter(link))
+            {
+                continue;
+            }
+
+            var title = AdapterHelpers.CleanText(
+                PreferAttribute(link.GetAttribute("title"))
+                ?? link.QuerySelector("h1, h2, h3, h4")?.TextContent
+                ?? link.TextContent);
+            if (title.Length < MinTitleLength)
             {
                 continue;
             }
 
             var href = link.GetAttribute("href");
-            if (string.IsNullOrWhiteSpace(href) ||
-                !Uri.TryCreate(baseUri, href, out var absolute) ||
+            if (string.IsNullOrWhiteSpace(href) || href.StartsWith('#'))
+            {
+                continue;
+            }
+
+            if (!Uri.TryCreate(baseUri, href, out var absolute) ||
                 absolute.Scheme is not ("http" or "https") ||
                 !seen.Add(absolute.ToString()))
             {
                 continue;
             }
 
-            var description = AdapterHelpers.CleanText(link.ParentElement?.TextContent ?? title);
+            var description = AdapterHelpers.CleanText(link.TextContent);
+            if (description.Length < title.Length)
+            {
+                description = title;
+            }
+
             items.Add(AdapterHelpers.CreateItem(
                 absolute.ToString(),
                 title,
@@ -62,5 +81,46 @@ public sealed class HtmlPageSourceAdapter(HttpClient httpClient) : ISourceAdapte
         }
 
         return items;
+    }
+
+    private static string? PreferAttribute(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && value.Trim().Length >= MinTitleLength ? value : null;
+
+    /// <summary>
+    /// Strony uczelni mają rozbudowane menu i stopki; bez tego filtra zapełniłyby limit
+    /// wyników linkami nawigacyjnymi zamiast ogłoszeń o projektach.
+    /// </summary>
+    private static bool IsNavigationOrFooter(IElement link)
+    {
+        for (var node = link.ParentElement; node is not null; node = node.ParentElement)
+        {
+            if (node.TagName is "NAV" or "HEADER" or "FOOTER" or "ASIDE")
+            {
+                return true;
+            }
+
+            if (HasMarker(node.Id) || HasMarker(node.ClassName))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasMarker(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var text = value.ToLowerInvariant();
+        return text.Contains("nav", StringComparison.Ordinal) ||
+               text.Contains("menu", StringComparison.Ordinal) ||
+               text.Contains("footer", StringComparison.Ordinal) ||
+               text.Contains("breadcrumb", StringComparison.Ordinal) ||
+               text.Contains("skip-link", StringComparison.Ordinal) ||
+               text.Contains("pager", StringComparison.Ordinal);
     }
 }

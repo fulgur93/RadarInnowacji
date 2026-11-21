@@ -9,7 +9,7 @@ namespace RadarInnowacji.Tests;
 public class DemoDataSeederTests
 {
     [Fact]
-    public async Task LoadAsync_Wstawia27OznaczonychOdkrycIDaneDlaTrzechRadarow()
+    public async Task LoadAsync_Wstawia28OznaczonychOdkrycIDaneDlaCzterechRadarow()
     {
         using var database = new SqliteTestDatabase();
         var db = database.Context;
@@ -17,20 +17,20 @@ public class DemoDataSeederTests
 
         var loaded = await seeder.LoadAsync();
 
-        Assert.Equal(27, loaded);
+        Assert.Equal(28, loaded);
         Assert.True(await seeder.HasDemoDataAsync());
-        Assert.Equal(27, await db.Discoveries.CountAsync(x => x.IsDemo));
-        Assert.Equal(9, await db.Sources.CountAsync(x => x.IsDemo));
+        Assert.Equal(28, await db.Discoveries.CountAsync(x => x.IsDemo));
+        Assert.Equal(10, await db.Sources.CountAsync(x => x.IsDemo));
         Assert.Equal(8, await db.Categories.CountAsync(x => x.IsDemo));
         Assert.Equal(10, await db.InnovationProjects.CountAsync(x => x.IsDemo));
-        Assert.Equal(9, await db.ScanHistory.CountAsync(x => x.IsDemo));
+        Assert.Equal(10, await db.ScanHistory.CountAsync(x => x.IsDemo));
         Assert.Equal(4, await db.AiAnalyses.CountAsync(x => x.IsDemo));
 
-        Assert.Equal(3, await db.Sources.Select(x => x.Radar).Distinct().CountAsync());
-        foreach (var radar in Enum.GetValues<RadarKind>())
-        {
-            Assert.Equal(9, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == radar));
-        }
+        Assert.Equal(Enum.GetValues<RadarKind>().Length, await db.Sources.Select(x => x.Radar).Distinct().CountAsync());
+        Assert.Equal(9, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == RadarKind.Uczelnia));
+        Assert.Equal(9, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == RadarKind.Repozytorium));
+        Assert.Equal(9, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == RadarKind.Wiadomosci));
+        Assert.Equal(1, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == RadarKind.Crowdfunding));
 
         Assert.True(await db.Discoveries.AllAsync(x => x.IsDemo &&
             x.SourceUrl.StartsWith("https://example.org/demo/")));
@@ -43,11 +43,11 @@ public class DemoDataSeederTests
         var db = database.Context;
         var seeder = new DemoDataSeeder(db);
 
-        Assert.Equal(27, await seeder.LoadAsync());
+        Assert.Equal(28, await seeder.LoadAsync());
         Assert.Equal(0, await seeder.LoadAsync());
 
-        Assert.Equal(27, await db.Discoveries.CountAsync());
-        Assert.Equal(9, await db.Sources.CountAsync());
+        Assert.Equal(28, await db.Discoveries.CountAsync());
+        Assert.Equal(10, await db.Sources.CountAsync());
     }
 
     [Fact]
@@ -79,11 +79,11 @@ public class DemoDataSeederTests
         await db.SaveChangesAsync();
 
         var seeder = new DemoDataSeeder(db);
-        Assert.Equal(27, await seeder.LoadAsync());
+        Assert.Equal(28, await seeder.LoadAsync());
 
         var removed = await seeder.ClearAsync();
 
-        Assert.Equal(9, removed);
+        Assert.Equal(10, removed);
         Assert.False(await seeder.HasDemoDataAsync());
         Assert.Equal(0, await db.Sources.CountAsync(x => x.IsDemo));
         Assert.Equal(0, await db.Discoveries.CountAsync(x => x.IsDemo));

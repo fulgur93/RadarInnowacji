@@ -14,6 +14,7 @@ public static class SourceDefaults
         SourceType.GitHubApi,
         SourceType.GitLabApi,
         SourceType.HuggingFaceApi,
+        SourceType.KickstarterApi,
         SourceType.HtmlPage
     ];
 
@@ -23,7 +24,8 @@ public static class SourceDefaults
         SourceType.Rss => FetchMethod.Rss,
         SourceType.Atom => FetchMethod.Atom,
         SourceType.HtmlPage => FetchMethod.Html,
-        SourceType.Dspace or SourceType.GitHubApi or SourceType.GitLabApi or SourceType.HuggingFaceApi => FetchMethod.Api,
+        SourceType.Dspace or SourceType.GitHubApi or SourceType.GitLabApi or SourceType.HuggingFaceApi
+            or SourceType.KickstarterApi => FetchMethod.Api,
         _ => FetchMethod.Manual
     };
 }
