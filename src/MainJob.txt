@@ -1,0 +1,1031 @@
+# PROJEKT: RADAR INNOWACJI
+## Inteligentny system automatycznego wykrywania potencjalnych innowacji
+
+Jesteś głównym architektem oprogramowania, doświadczonym programistą .NET 10, specjalistą Blazor, AI/ML, przetwarzania danych oraz integracji z zewnętrznymi źródłami informacji.
+
+Twoim zadaniem jest zaprojektowanie i stopniowe stworzenie kompletnej aplikacji o nazwie „Radar Innowacji”.
+
+Projekt realizowany jest w ramach hackathonu i musi posiadać działający prototyp oraz możliwość instalacji na komputerze osoby oceniającej.
+
+Nie twórz całej aplikacji jednocześnie. Pracuj etapami zgodnie z poniższą specyfikacją.
+
+---
+
+# I. CEL PROJEKTU
+
+Radar Innowacji to inteligentna platforma służąca do automatycznego odnajdywania potencjalnie wartościowych innowacji powstających w szkołach, uczelniach, instytucjach publicznych, społecznościach programistycznych oraz innych organizacjach.
+
+System ma wyszukiwać informacje o nowych projektach, prototypach, wynalazkach, pracach naukowych, projektach studenckich i rozwiązaniach technologicznych.
+
+Najważniejszym założeniem jest odnajdywanie projektów, które nie zostały formalnie zgłoszone jako innowacje.
+
+System nie może ograniczać się do wyszukiwania słowa „innowacja”.
+
+Powinien rozpoznawać opisy:
+- nowych technologii;
+- projektów badawczych;
+- prac inżynierskich i magisterskich;
+- prototypów urządzeń;
+- nowych metod i algorytmów;
+- projektów Open Source;
+- projektów kół naukowych;
+- rozwiązań organizacyjnych;
+- rozwiązań społecznych;
+- nowych zastosowań istniejących technologii.
+
+Podstawowym celem pierwszej wersji jest skuteczne WYKRYWANIE I GROMADZENIE informacji o potencjalnych innowacjach.
+
+Nie skupiaj się na komercjalizacji, inwestorach ani finansowaniu. Te funkcjonalności mogą zostać dodane w przyszłości.
+
+# II. TECHNOLOGIE
+
+Wykorzystaj następujący stos technologiczny:
+
+### Backend
+- ASP.NET Core 10.
+- C#.
+- Entity Framework Core 10.
+- Dependency Injection.
+- BackgroundService do cyklicznych zadań.
+- HttpClientFactory do komunikacji z zewnętrznymi API.
+
+### Frontend
+- Blazor Web App.
+- Interactive Server.
+- Razor Components.
+- Bootstrap 5.
+- Responsywny interfejs.
+- Język polski.
+
+Nie twórz osobnego frontendu w React ani Angular.
+
+Nie pisz własnego JavaScriptu. Funkcjonalności interfejsu realizuj w Blazor i C#.
+
+Wykresy realizuj za pomocą komponentów Blazor lub SVG generowanego przez Razor.
+
+### Baza danych
+- SQLite.
+- Entity Framework Core.
+- Migracje EF Core.
+
+Baza musi być przechowywana poza katalogiem instalacyjnym aplikacji, w katalogu danych użytkownika.
+
+Architektura ma umożliwiać późniejsze przejście na PostgreSQL.
+
+### AI
+- Ollama jako opcjonalny lokalny silnik AI.
+- Qwen3 1.7B jako początkowy model językowy.
+- Model embeddingowy multilingual-e5-small lub inny odpowiedni model wielojęzyczny.
+- Możliwość wyłączenia AI.
+
+AI nie może być wymagane do uruchomienia aplikacji.
+
+System musi działać również bez zainstalowanego Ollama.
+
+### Przetwarzanie danych
+- AngleSharp do analizy HTML.
+- RSS/Atom do pobierania wiadomości.
+- API zewnętrznych serwisów.
+- OAI-PMH do pobierania metadanych repozytoriów naukowych.
+- Mechanizm pobierania dokumentów PDF, jeżeli pozwala na to źródło.
+
+### Dodatkowe założenia
+- Logowanie operacji.
+- Obsługa błędów.
+- Asynchroniczne pobieranie danych.
+- Możliwość anulowania zadań.
+- Konfiguracja źródeł bez modyfikowania kodu.
+- Brak uzależnienia od zewnętrznej chmury.
+
+Nie dodawaj niepotrzebnych bibliotek. Przed wykorzystaniem dodatkowej zależności sprawdź jej kompatybilność z .NET 10.
+
+# III. ARCHITEKTURA PROJEKTU
+
+Zaprojektuj rozwiązanie modułowo.
+
+Proponowana struktura:
+
+RadarInnowacji/
+│
+├── RadarInnowacji.sln
+│
+├── src/
+│   ├── RadarInnowacji.Web/
+│   │   ├── Components/
+│   │   ├── Pages/
+│   │   ├── Layout/
+│   │   ├── Services/
+│   │   └── wwwroot/
+│   │
+│   ├── RadarInnowacji.Core/
+│   │   ├── Entities/
+│   │   ├── Enums/
+│   │   ├── Interfaces/
+│   │   └── Models/
+│   │
+│   ├── RadarInnowacji.Infrastructure/
+│   │   ├── Database/
+│   │   ├── Repositories/
+│   │   ├── ExternalSources/
+│   │   ├── AI/
+│   │   └── Processing/
+│   │
+│   └── RadarInnowacji.Worker/
+│       └── Jobs/
+│
+├── tests/
+│   ├── RadarInnowacji.Tests/
+│   └── RadarInnowacji.IntegrationTests/
+│
+├── installer/
+│
+└── README.md
+
+Możesz zmodyfikować strukturę, jeżeli uzasadnia to architektura, ale zachowaj rozdzielenie logiki biznesowej, interfejsu i integracji.
+
+Nie umieszczaj logiki pobierania danych bezpośrednio w komponentach Blazor.
+
+# IV. GŁÓWNE MODUŁY SYSTEMU
+
+## 1. RADAR UCZELNI
+
+Najważniejszym zadaniem jest odnajdywanie projektów i innowacji powstających na uczelniach.
+
+Nie ograniczaj się do repozytoriów prac dyplomowych.
+
+Przeszukuj:
+
+A. Prace dyplomowe:
+- prace inżynierskie;
+- prace licencjackie;
+- prace magisterskie;
+- doktoraty;
+- rozprawy doktorskie.
+
+B. Projekty naukowe:
+- projekty badawcze;
+- projekty B+R;
+- publikacje naukowe;
+- raporty badawcze;
+- demonstratory technologiczne.
+
+C. Aktywność uczelni:
+- koła naukowe;
+- konkursy wynalazków;
+- projekty studenckie;
+- laboratoria;
+- centra badawcze;
+- aktualności uczelniane;
+- projekty interdyscyplinarne.
+
+D. Repozytoria uczelniane.
+
+Pierwsze przykładowe źródła:
+- AGH – Repozytorium AGH.
+- Politechnika Gdańska – Most Wiedzy.
+- UMK – RUMAK.
+- Politechnika Warszawska – Repozytorium PW.
+- Uniwersytet Jagielloński – RUJ.
+- Uniwersytet Kazimierza Wielkiego.
+- OPEN – Repozytorium Otwartych Publikacji Naukowych.
+- PBN.
+- OpenDOAR.
+
+Ważne:
+Nie zakładaj, że każde repozytorium udostępnia takie samo API.
+
+Preferuj:
+- OAI-PMH;
+- oficjalne API;
+- RSS;
+- publiczne metadane;
+- legalnie dostępne strony internetowe.
+
+Dla każdego źródła zaprojektuj osobny adapter implementujący wspólny interfejs.
+
+## 2. RADAR REPOZYTORIÓW
+
+Przeszukuj publicznie dostępne repozytoria programistyczne i technologiczne.
+
+Pierwsze źródła:
+
+- GitHub.
+- GitLab.
+- Hugging Face.
+- Codeberg.
+- SourceForge.
+
+GitHub:
+Wykorzystuj GitHub REST API.
+
+Pobieraj:
+- nazwę projektu;
+- opis;
+- README;
+- autora;
+- organizację;
+- języki programowania;
+- datę utworzenia;
+- datę ostatniej aktualizacji;
+- liczbę gwiazdek;
+- liczbę forków;
+- licencję;
+- adres repozytorium;
+- dostępne informacje o demonstracji.
+
+GitLab:
+Wykorzystuj oficjalne API.
+
+Hugging Face:
+Wyszukuj:
+- modele;
+- aplikacje;
+- datasety;
+- projekty badawcze.
+
+Nie ograniczaj wyszukiwania do popularnych repozytoriów.
+
+Małe, nowe projekty mogą być szczególnie wartościowe.
+
+Liczba gwiazdek nie może decydować o tym, czy projekt zostanie uznany za potencjalną innowację.
+
+## 3. RADAR WIADOMOŚCI
+
+Celem jest wykrywanie informacji o nowych rozwiązaniach publikowanych w Internecie.
+
+Przeszukuj:
+
+- portale naukowe;
+- portale technologiczne;
+- strony uczelni;
+- strony szkół;
+- strony samorządów;
+- strony instytucji publicznych;
+- strony centrów innowacji;
+- informacje o konkursach;
+- informacje o wynalazkach;
+- informacje o nowych projektach badawczych.
+
+Preferowane metody:
+- RSS;
+- Atom;
+- oficjalne API;
+- analiza publicznych stron HTML.
+
+Nie twórz scraperów obchodzących zabezpieczenia stron.
+
+Uwzględniaj ograniczenia dostępu, regulaminy oraz robots.txt.
+
+# V. WSPÓLNY MODEL DANYCH
+
+Wszystkie trzy radary muszą zapisywać wyniki w ujednoliconym modelu danych.
+
+Zaprojektuj następujące encje:
+
+### Source
+Informacje o źródle:
+- Id;
+- Name;
+- Url;
+- SourceType;
+- FetchMethod;
+- IsActive;
+- ScanInterval;
+- LastScanDate;
+- LastSuccessfulScan;
+- LastError;
+- Configuration.
+
+### Discovery
+Informacje o znalezionym materiale:
+- Id;
+- Title;
+- Description;
+- RawContent;
+- SourceId;
+- SourceUrl;
+- ExternalId;
+- PublishedAt;
+- CreatedAt;
+- LastActivityAt;
+- DiscoveredAt;
+- ContentHash;
+- Author;
+- Organization;
+- Languages;
+- Technologies;
+- CategoryIds;
+- AIProcessed;
+- IsPotentialInnovation;
+- AIConfidence;
+- AIAnalysis;
+- ProcessingStatus.
+
+### InnovationProject
+Reprezentuje projekt, który może mieć wiele znalezionych materiałów.
+
+Pola:
+- Id;
+- Title;
+- Description;
+- Problem;
+- ProposedSolution;
+- ProjectStatus;
+- FirstDiscoveredAt;
+- EarliestKnownDate;
+- LastActivityAt;
+- FreshnessScore;
+- CreatedAt.
+
+### DiscoveryProject
+Relacja wiele-do-wielu łącząca materiały źródłowe z projektem.
+
+### Category
+Dynamiczne kategorie:
+- Id;
+- Name;
+- Description;
+- ParentCategoryId;
+- CreatedAt;
+- LastUpdatedAt;
+- IsActive.
+
+### ProjectCategory
+Powiązanie projektu z kategoriami.
+
+### ScanHistory
+Historia skanowania źródeł.
+
+### AIAnalysis
+Historia analizy AI:
+- model;
+- data;
+- wynik;
+- pewność;
+- uzasadnienie;
+- wersja promptu.
+
+Uwzględnij relacje, indeksy i ograniczenia integralności.
+
+Nie przechowuj całej zawartości dużych dokumentów bez ograniczeń. Zaprojektuj mechanizm przechowywania treści i metadanych w sposób umożliwiający dalsze skalowanie.
+
+# VI. WYKRYWANIE POTENCJALNYCH INNOWACJI
+
+System musi wykorzystywać kilka mechanizmów.
+
+### Etap 1 – filtr regułowy
+
+Wstępnie analizuj tytuły, opisy i metadane.
+
+Szukaj sformułowań:
+- opracowano;
+- zaprojektowano;
+- skonstruowano;
+- stworzono prototyp;
+- nowa metoda;
+- nowa technologia;
+- autorski system;
+- innowacyjne rozwiązanie;
+- badania nad;
+- autonomiczny system;
+- inteligentny system.
+
+Nie odrzucaj automatycznie materiałów, które nie zawierają tych słów.
+
+### Etap 2 – analiza AI
+
+Wykorzystaj Ollama.
+
+Domyślny model: Qwen3 1.7B Q4.
+
+AI powinno analizować materiał i zwracać ustrukturyzowane dane.
+
+Przykładowy wynik:
+
+{
+  "isPotentialInnovation": true,
+  "confidence": 85,
+  "innovationType": "Technologiczna",
+  "problem": "Problem rozwiązywany przez projekt",
+  "solution": "Opis proponowanego rozwiązania",
+  "noveltyDescription": "Co może być nowe",
+  "technologies": ["IoT", "AI"],
+  "reason": "Uzasadnienie",
+  "suggestedCategories": ["Robotyka", "AI"]
+}
+
+To przykład schematu, nie sztywny zestaw kategorii.
+
+AI nie może przedstawiać przypuszczeń jako potwierdzonych faktów.
+
+Jeżeli brakuje informacji, ma to wyraźnie zaznaczyć.
+
+### Etap 3 – status odkrycia
+
+Wprowadź trzy statusy:
+
+1. Candidate – znaleziony materiał potencjalnie interesujący.
+2. Interesting – AI wskazuje, że warto go dokładniej zbadać.
+3. Verified – człowiek potwierdził jego wartość.
+
+Status Verified wymaga ręcznego zatwierdzenia.
+
+### Etap 4 – praca bez AI
+
+Jeżeli Ollama nie działa:
+- system nadal pobiera materiały;
+- stosuje filtry regułowe;
+- zapisuje wyniki;
+- oznacza materiały jako wymagające analizy AI;
+- pozwala na późniejsze przetworzenie.
+
+# VII. DYNAMICZNE KATEGORIE
+
+Nie twórz zamkniętej listy kategorii.
+
+System powinien sam wykrywać grupy tematyczne na podstawie podobieństwa projektów.
+
+Wykorzystaj:
+- embeddingi;
+- grupowanie wektorów;
+- algorytm HDBSCAN lub inne uzasadnione rozwiązanie;
+- mały LLM do generowania nazw kategorii.
+
+Jeżeli HDBSCAN nie ma odpowiedniej, kompatybilnej biblioteki .NET, sprawdź alternatywy przed wyborem technologii. Nie dodawaj przypadkowej zależności.
+
+Preferuj rozwiązania działające lokalnie na CPU.
+
+Przykład:
+
+System znajduje projekty:
+- inteligentne czujniki jakości powietrza;
+- systemy monitorowania środowiska;
+- czujniki zanieczyszczeń dla szkół;
+- autonomiczne stacje pomiarowe.
+
+Tworzy kategorię:
+„Inteligentne monitorowanie środowiska”.
+
+Kolejne projekty powinny być automatycznie przypisywane do istniejących kategorii, jeśli są wystarczająco podobne.
+
+Jeżeli powstaje nowy obszar tematyczny, system może zaproponować nową kategorię.
+
+Kategorie nie mogą być tworzone na podstawie pojedynczego przypadkowego projektu bez odpowiedniego uzasadnienia.
+
+Projekt może należeć do wielu kategorii.
+
+Grupowanie wykonuj cyklicznie, a nie przy każdym dodaniu projektu.
+
+# VIII. ŚWIEŻOŚĆ I ZAKRES DAT
+
+Jest to jedna z najważniejszych funkcji projektu.
+
+System ma rozróżniać:
+
+1. PublishedAt – data publikacji materiału.
+2. EarliestKnownDate – najwcześniejsza znana data powstania projektu.
+3. LastActivityAt – ostatnia znana aktywność projektu.
+4. DiscoveredAt – moment odnalezienia materiału przez Radar.
+
+Nie zakładaj, że data publikacji jest datą powstania innowacji.
+
+Jeżeli nie można ustalić daty, zapisuj NULL.
+
+Nie wymyślaj dat.
+
+Wprowadź filtry:
+
+- ostatnie 7 dni;
+- ostatnie 30 dni;
+- ostatnie 90 dni;
+- ostatnie 6 miesięcy;
+- ostatni rok;
+- ostatnie 2 lata;
+- wszystkie;
+- własny zakres dat.
+
+Umożliw osobne filtrowanie według:
+- daty publikacji;
+- daty powstania projektu;
+- daty ostatniej aktywności;
+- daty odkrycia przez Radar.
+
+Stwórz wskaźnik FreshnessScore.
+
+Świeżość powinna być oddzielona od oceny wartości innowacji.
+
+Nie usuwaj starszych projektów z bazy tylko dlatego, że użytkownik wybiera krótki zakres dat.
+
+Historia ma być zachowywana.
+
+# IX. WYKRYWANIE TRENDÓW
+
+System powinien analizować zmiany liczby projektów w kategoriach.
+
+Przykład:
+
+Styczeń: 5 projektów dotyczących robotyki medycznej.
+
+Luty: 18 projektów.
+
+Marzec: 43 projekty.
+
+System wykrywa wzrost zainteresowania tematem.
+
+Prezentuj:
+- liczbę nowych projektów;
+- dynamikę zmian;
+- okres analizy;
+- najaktywniejsze kategorie;
+- nowe kategorie;
+- kategorie z największym wzrostem.
+
+Nie utożsamiaj większej liczby pobranych materiałów ze wzrostem rzeczywistej liczby innowacji.
+
+Uwzględniaj liczbę monitorowanych źródeł i częstotliwość ich skanowania.
+
+# X. DEDUPLIKACJA
+
+Ten sam projekt może występować:
+- na stronie uczelni;
+- w repozytorium GitHub;
+- w artykule prasowym;
+- w publikacji naukowej.
+
+System powinien rozpoznawać takie sytuacje.
+
+Wykorzystaj:
+- ExternalId;
+- ContentHash;
+- podobieństwo tytułów;
+- podobieństwo opisów;
+- embeddingi.
+
+Nie usuwaj znalezionych materiałów.
+
+Łącz je w jeden InnovationProject posiadający wiele Discovery.
+
+Nie łącz automatycznie projektów, jeżeli podobieństwo jest niejednoznaczne. W takich sytuacjach zaproponuj użytkownikowi połączenie.
+
+# XI. INTERFEJS UŻYTKOWNIKA
+
+Stwórz nowoczesny, profesjonalny interfejs.
+
+Inspiracja: platformy analityczne, systemy Business Intelligence i narzędzia do monitorowania technologii.
+
+Interfejs powinien być przejrzysty, nowoczesny i responsywny.
+
+Kolorystyka:
+- ciemny granat;
+- grafit;
+- jasne tło kart;
+- niebieskie akcenty;
+- delikatne wyróżnienia nowych odkryć.
+
+Nie przesadzaj z efektami wizualnymi.
+
+Menu główne:
+
+1. Dashboard.
+2. Radar uczelni.
+3. Radar repozytoriów.
+4. Radar wiadomości.
+5. Wszystkie odkrycia.
+6. Kategorie i trendy.
+7. Źródła danych.
+8. Historia skanowania.
+9. Ustawienia.
+
+### Dashboard
+
+Powinien zawierać:
+- liczbę wszystkich odkrytych materiałów;
+- liczbę potencjalnych innowacji;
+- liczbę nowych odkryć;
+- liczbę aktywnych źródeł;
+- liczbę kategorii;
+- wykres aktywności w czasie;
+- najnowsze odkrycia;
+- najpopularniejsze kategorie;
+- status działania AI;
+- status skanowania źródeł.
+
+### Widok pojedynczego radaru
+
+Każdy radar powinien mieć:
+- listę znalezionych materiałów;
+- filtrowanie;
+- sortowanie;
+- zakres dat;
+- wyszukiwanie;
+- kategorię;
+- status analizy AI;
+- źródło;
+- możliwość otwarcia oryginalnego materiału.
+
+### Karta odkrycia
+
+Pokazuj:
+- tytuł;
+- opis;
+- źródło;
+- datę publikacji;
+- datę odkrycia;
+- autora;
+- organizację;
+- technologie;
+- kategorie;
+- wynik analizy AI;
+- uzasadnienie AI;
+- podobne projekty.
+
+# XII. AUTOMATYZACJA
+
+Każde źródło powinno mieć indywidualną konfigurację.
+
+Użytkownik może ustawić:
+- częstotliwość skanowania;
+- aktywność;
+- zakres pobieranych danych;
+- ostatnią datę skanowania.
+
+Wprowadź BackgroundService obsługujący zadania.
+
+System powinien:
+- pobierać dane cyklicznie;
+- obsługiwać błędy poszczególnych źródeł;
+- ponawiać nieudane operacje;
+- nie blokować interfejsu;
+- zapisywać historię;
+- zapobiegać pobieraniu tych samych materiałów;
+- umożliwiać ręczne uruchomienie skanowania.
+
+Nie wykonuj niekontrolowanych równoległych zapytań do zewnętrznych serwisów.
+
+Przestrzegaj limitów API.
+
+# XIII. DANE DEMONSTRACYJNE
+
+Bardzo ważne dla hackathonu.
+
+Aplikacja musi posiadać tryb demonstracyjny.
+
+Przygotuj przykładowe dane przedstawiające:
+- projekty uczelniane;
+- projekty GitHub;
+- wiadomości o innowacjach;
+- różne kategorie;
+- różne daty;
+- różne poziomy dojrzałości.
+
+Dane demonstracyjne muszą być wyraźnie oznaczone jako przykładowe.
+
+Nie przedstawiaj fikcyjnych projektów jako rzeczywistych odkryć.
+
+Dodaj możliwość załadowania danych demonstracyjnych jednym kliknięciem.
+
+Przygotuj minimum 20 przykładowych materiałów z różnych obszarów tematycznych.
+
+Dane demonstracyjne muszą pozwalać pokazać:
+- trzy radary;
+- filtrowanie dat;
+- dynamiczne kategorie;
+- podobne projekty;
+- wykresy aktywności.
+
+# XIV. INSTALATOR I URUCHAMIANIE
+
+To wymaganie krytyczne.
+
+Projekt jest przeznaczony do demonstracji na komputerze osoby oceniającej.
+
+Nie może wymagać:
+- Visual Studio;
+- JetBrains Rider;
+- zainstalowanego SDK .NET;
+- PostgreSQL;
+- zewnętrznego serwera.
+
+Przygotuj aplikację jako samodzielny program dla Windows x64.
+
+Wykorzystaj:
+- self-contained deployment;
+- ASP.NET Core Kestrel;
+- lokalną bazę SQLite;
+- Inno Setup do stworzenia instalatora EXE.
+
+Oczekiwany sposób działania:
+
+1. Tester uruchamia plik instalacyjny.
+2. Instalator instaluje aplikację.
+3. Tworzony jest skrót na pulpicie.
+4. Tester uruchamia Radar Innowacji.
+5. Program uruchamia lokalny serwer.
+6. Automatycznie otwiera przeglądarkę.
+7. Wyświetla się dashboard.
+
+Aplikacja powinna działać lokalnie pod adresem localhost.
+
+Zabezpiecz uruchomienie:
+- nasłuchuj wyłącznie na loopback;
+- nie wystawiaj aplikacji do sieci lokalnej bez wyraźnej konfiguracji;
+- obsłuż konflikt portu;
+- zapobiegaj uruchamianiu kilku niepotrzebnych instancji;
+- umożliwiaj poprawne zamknięcie aplikacji.
+
+Dane użytkownika przechowuj poza katalogiem instalacyjnym.
+
+Instalator nie powinien zawierać Ollama ani dużych modeli AI.
+
+Jeżeli AI nie jest dostępne, aplikacja ma nadal działać.
+
+Przygotuj również:
+- instrukcję instalacji;
+- instrukcję uruchomienia;
+- instrukcję odinstalowania;
+- możliwość zachowania lub usunięcia danych przy deinstalacji.
+
+Docelowy rezultat:
+RadarInnowacji-Setup.exe
+
+Dodatkowo przygotuj skrypt budowania instalatora, aby można było go odtworzyć.
+
+# XV. BEZPIECZEŃSTWO I JAKOŚĆ
+
+Wymagania:
+- poprawna obsługa wyjątków;
+- logowanie;
+- walidacja danych;
+- bezpieczne przechowywanie konfiguracji;
+- brak kluczy API w kodzie;
+- ochrona przed niekontrolowanym pobieraniem dużych plików;
+- limity długości przetwarzanych dokumentów;
+- kontrola czasu wykonywania zapytań;
+- ochrona przed niebezpiecznym przetwarzaniem pobranego HTML.
+
+Każdy adapter źródła musi działać niezależnie.
+
+Awaria jednego źródła nie może zatrzymywać całego Radaru.
+
+# XVI. PLAN REALIZACJI – OBOWIĄZKOWE ETAPY
+
+Pracuj według następujących etapów.
+
+NIE PRZECHODŹ AUTOMATYCZNIE DO KOLEJNEGO ETAPU.
+
+Po zakończeniu każdego etapu:
+1. Skompiluj rozwiązanie.
+2. Uruchom testy.
+3. Napraw błędy.
+4. Sprawdź działanie aplikacji.
+5. Zaktualizuj dokumentację.
+6. Przedstaw podsumowanie.
+7. Poczekaj na moją akceptację.
+
+## ETAP 0 – FUNDAMENT
+
+Zadania:
+- utworzenie rozwiązania;
+- utworzenie projektów;
+- konfiguracja .NET 10;
+- konfiguracja Blazor Web App;
+- konfiguracja EF Core i SQLite;
+- konfiguracja Dependency Injection;
+- podstawowy layout;
+- konfiguracja logowania.
+
+Rezultat:
+Uruchamialna aplikacja z pustym dashboardem.
+
+Warunek odbioru:
+Aplikacja kompiluje się i uruchamia bez błędów.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 1 – INTERFEJS I BAZA DANYCH
+
+Zadania:
+- implementacja encji;
+- relacje EF Core;
+- migracje;
+- menu;
+- dashboard;
+- widok wszystkich odkryć;
+- widok źródeł;
+- konfiguracja źródeł;
+- dane demonstracyjne.
+
+Rezultat:
+Działająca aplikacja z przykładowymi danymi.
+
+Warunek odbioru:
+Można przeglądać materiały, filtrować je i zarządzać źródłami.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 2 – RADAR UCZELNI
+
+Zadania:
+- implementacja interfejsu adaptera uczelni;
+- obsługa OAI-PMH;
+- obsługa repozytoriów DSpace;
+- obsługa metadanych;
+- obsługa RSS uczelni;
+- pobieranie aktualności;
+- historia skanowania;
+- deduplikacja.
+
+Zaimplementuj minimum dwa rzeczywiste źródła uczelniane.
+
+Nie udawaj, że źródło jest obsługiwane, jeżeli integracja nie została przetestowana.
+
+Rezultat:
+Możliwość ręcznego skanowania uczelni i zapisywania wyników.
+
+Warunek odbioru:
+Pobieranie rzeczywistych danych i poprawne wyświetlanie wyników.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 3 – RADAR REPOZYTORIÓW
+
+Zadania:
+- integracja GitHub API;
+- integracja GitLab API;
+- integracja Hugging Face;
+- wyszukiwanie projektów;
+- pobieranie README;
+- pobieranie metadanych;
+- filtrowanie dat;
+- obsługa limitów API;
+- deduplikacja.
+
+Rezultat:
+Możliwość wyszukiwania nowych projektów programistycznych.
+
+Warunek odbioru:
+Rzeczywiste projekty pobierane z minimum dwóch serwisów.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 4 – RADAR WIADOMOŚCI
+
+Zadania:
+- obsługa RSS;
+- obsługa Atom;
+- pobieranie stron HTML;
+- ekstrakcja tytułów i treści;
+- wykrywanie dat publikacji;
+- obsługa konfiguracji źródeł;
+- historia pobierania.
+
+Dodaj minimum pięć rzeczywistych źródeł informacji.
+
+Rezultat:
+Automatyczne odnajdywanie informacji o nowych projektach.
+
+Warunek odbioru:
+Działające pobieranie i prezentacja wiadomości.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 5 – SILNIK AI
+
+Zadania:
+- integracja Ollama;
+- konfiguracja modelu;
+- test połączenia;
+- analiza treści;
+- klasyfikacja potencjalnych innowacji;
+- ekstrakcja informacji;
+- strukturalny wynik JSON;
+- obsługa błędów modelu;
+- kolejka analizy;
+- tryb bez AI.
+
+Rezultat:
+Automatyczna analiza znalezionych materiałów.
+
+Warunek odbioru:
+AI analizuje rzeczywiste materiały z trzech radarów.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 6 – DYNAMICZNE KATEGORIE I ŚWIEŻOŚĆ
+
+Zadania:
+- integracja embeddingów;
+- lokalne generowanie embeddingów;
+- grupowanie projektów;
+- wykrywanie nowych kategorii;
+- przypisywanie projektów do kategorii;
+- obsługa wielu kategorii;
+- filtry dat;
+- FreshnessScore;
+- historia kategorii.
+
+Rezultat:
+Dynamiczny katalog tematów i filtrowanie według świeżości.
+
+Warunek odbioru:
+System potrafi grupować podobne projekty i zaproponować nową kategorię.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 7 – WSPÓLNY RADAR I TRENDY
+
+Zadania:
+- wspólny widok odkryć;
+- łączenie materiałów w projekty;
+- wyszukiwanie podobnych projektów;
+- wykrywanie duplikatów;
+- analiza trendów;
+- wykresy aktywności;
+- porównywanie kategorii;
+- filtrowanie wszystkich źródeł.
+
+Rezultat:
+Kompletny mechanizm odkrywania innowacji.
+
+Warunek odbioru:
+Można prześledzić projekt znaleziony w kilku źródłach i zobaczyć jego powiązania.
+
+ZATRZYMAJ SIĘ.
+
+## ETAP 8 – INSTALATOR I FINALIZACJA
+
+Zadania:
+- publikacja self-contained win-x64;
+- przygotowanie Inno Setup;
+- stworzenie instalatora EXE;
+- skrót na pulpicie;
+- uruchamianie lokalnego serwera;
+- automatyczne otwieranie przeglądarki;
+- obsługa zamykania aplikacji;
+- przeniesienie bazy do katalogu użytkownika;
+- test instalacji na czystym Windows;
+- przygotowanie README;
+- przygotowanie instrukcji demonstracji.
+
+Rezultat:
+RadarInnowacji-Setup.exe.
+
+Warunek odbioru:
+Aplikację można zainstalować i uruchomić na komputerze bez środowiska programistycznego i bez zainstalowanego SDK .NET.
+
+ZATRZYMAJ SIĘ.
+
+# XVII. ZASADY PRACY
+
+Najważniejsze zasady:
+
+1. Realizuj tylko jeden etap naraz.
+2. Nie implementuj kolejnych etapów bez mojej akceptacji.
+3. Nie twórz kodu na zapas dla przyszłych funkcjonalności.
+4. Nie twórz fikcyjnych integracji.
+5. Nie zastępuj rzeczywistych API danymi demonstracyjnymi bez wyraźnego oznaczenia.
+6. Nie ignoruj błędów kompilacji.
+7. Nie usuwaj istniejących działających funkcjonalności podczas rozbudowy.
+8. Nie zmieniaj architektury bez uzasadnienia.
+9. Dbaj o czytelny i prosty kod.
+10. Nie twórz niepotrzebnych abstrakcji.
+11. Każdy moduł powinien być testowalny niezależnie.
+12. Stosuj aktualne API .NET 10.
+13. Nie używaj przestarzałych bibliotek.
+14. Nie zakładaj, że wszystkie źródła oferują API.
+15. Nie analizuj ponownie niezmienionych materiałów.
+16. Nie traktuj wyniku AI jako potwierdzenia innowacyjności.
+17. Wszystkie komunikaty interfejsu mają być po polsku.
+18. Wszystkie daty prezentuj w polskim formacie.
+19. Przy problemach z bibliotekami najpierw sprawdź ich kompatybilność.
+20. Priorytetem jest działający prototyp, a nie rozbudowana architektura.
+
+### RAPORT PO KAŻDYM ETAPIE
+
+Po zakończeniu etapu przedstaw:
+
+- Co zostało wykonane.
+- Jakie pliki zostały utworzone lub zmienione.
+- Jakie funkcjonalności działają.
+- Jakie testy wykonano.
+- Czy aplikacja się kompiluje.
+- Jak uruchomić i sprawdzić nową funkcjonalność.
+- Jakie są znane ograniczenia.
+- Co będzie realizowane w następnym etapie.
+
+Nie przechodź do następnego etapu bez mojej zgody.
+
+# XVIII. ROZPOCZĘCIE PRACY
+
+Na początku:
+
+1. Sprawdź zawartość aktualnego katalogu.
+2. Sprawdź dostępność SDK .NET 10.
+3. Sprawdź dostępność narzędzi wymaganych do pracy.
+4. Zaproponuj końcową strukturę rozwiązania.
+5. Przedstaw plan realizacji ETAPU 0.
+6. Poczekaj na moją akceptację, zanim zaczniesz implementację.
+
+Pamiętaj: tworzysz rzeczywistą aplikację przeznaczoną do prezentacji na hackathonie.
+
+Najważniejsze są działające integracje, rzeczywiste dane, wiarygodne wyniki i możliwość łatwego uruchomienia aplikacji na komputerze komisji konkursowej.

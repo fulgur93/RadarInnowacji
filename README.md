@@ -3,15 +3,15 @@
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
 repozytoriach kodu źródłowego oraz wiadomościach internetowych.
 
-**Status projektu: ETAP 1 – INTERFEJS I BAZA DANYCH (zaimplementowany, oczekuje na akceptację).**
-Etap 0 został wcześniej zaakceptowany przez zamawiającego.
+**Status projektu: ETAP 2 – ADAPTERY ŹRÓDEŁ I SKANOWANIE W TLE (zaimplementowany, oczekuje na akceptację).**
+Etapy 0 i 1 zostały wcześniej zaakceptowane przez zamawiającego.
 
 ## Stos technologiczny
 
 - ASP.NET Core 10 / C# / Blazor Web App (Interactive Server)
 - Entity Framework Core 10 + SQLite (możliwość przejścia na PostgreSQL)
 - BackgroundService (zadania cykliczne, od Etapu 0 jako biblioteka `Jobs` uruchamiana w procesie Web)
-- HttpClientFactory, Ollama (opcjonalnie), AngleSharp, RSS/Atom, OAI-PMH (od kolejnych etapów)
+- HttpClientFactory, AngleSharp, RSS/Atom, OAI-PMH (adaptery źródeł), Ollama (opcjonalnie, od kolejnego etapu)
 - Bootstrap 5 (lokalnie w `wwwroot/lib/bootstrap`, bez zależności od CDN)
 - Wykresy Razor/SVG bez własnego JavaScript-u
 
@@ -71,9 +71,15 @@ nie musi wywoływać `dotnet ef database update`.
 | `SingleInstance` | `true` | Blokada drugiej instancji (plik `radar.lock` z PID) |
 | `DatabasePath` | `""` | Ścieżka do SQLite; pusta = katalog danych użytkownika |
 | `LogDirectory` | `""` | Katalog logów; pusta = katalog danych użytkownika |
+| `Scanning:Enabled` | `true` | Włączenie cyklicznego skanowania w tle |
+| `Scanning:IntervalMinutes` | `15` | Częstotliwość uruchamiania cyklu skanowania |
+| `Scanning:StartDelaySeconds` | `10` | Opóźnienie pierwszego skanu po starcie |
+| `Scanning:MaxItemsPerSource` | `50` | Maksymalna liczba materiałów zapisanych z jednego źródła |
 
 Zmienne środowiskowe nadpisują ustawienia uruchomieniowe:
-`RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`.
+`RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`,
+`RADAR_SCANNING_ENABLED`, `RADAR_SCAN_INTERVAL_MINUTES`,
+`RADAR_SCAN_START_DELAY_SECONDS`, `RADAR_SCAN_MAX_ITEMS`.
 Ścieżki danych można nadpisać przez `RADAR_DATA_DIR`, `RADAR_DB_PATH`, `RADAR_LOG_DIR`.
 
 Dane użytkownika (SQLite i logi) są zapisywane poza katalogiem aplikacji:
@@ -97,6 +103,20 @@ Wynik weryfikacji Etapu 1:
 - test runtime na `127.0.0.1:15181` z załadowanymi przykładami: wszystkie strony zwróciły
   HTTP 200, daty wyświetlane w formacie `dd.MM.yyyy`/`dd.MM.yyyy HH:mm`, zamknięcie
   z sygnałem SIGTERM zostało zapisane w logu jako `Application is shutting down...`.
+
+Wynik weryfikacji Etapu 2:
+
+- `dotnet build RadarInnowacji.sln -v minimal` – **0 ostrzeżeń, 0 błędów**,
+- `dotnet test RadarInnowacji.sln --no-build` – **51 testów zaliczonych**
+  (38 jednostkowych + 13 integracyjnych),
+- test runtime z lokalnym kanałem RSS (`127.0.0.1:15189`) i aplikacją na `127.0.0.1:15190`:
+  skanowanie w tle pobrało 1 rzeczywisty materiał, zapisało wpis `ScanHistory`,
+  zaktualizowało `LastScanDate`/`LastSuccessfulScan` i wyświetliło odkrycie bez badge’u `DEMO`,
+- daty w interfejsie pozostały w formatach `dd.MM.yyyy` i `dd.MM.yyyy HH:mm`,
+- logi nie zawierały `fail:`, `crit:` ani nieobsłużonych wyjątków; zamknięcie SIGTERM
+  zostało odnotowane w logu,
+- Etap 2 nie wymagał nowej migracji – wykorzystuje istniejące tabele `Sources`,
+  `Discoveries` i `ScanHistory`.
 
 ## Co działa w Etapie 0 (zaakceptowanym)
 
@@ -127,17 +147,51 @@ Wynik weryfikacji Etapu 1:
   wyłącznie wiersze oznaczone jako `IsDemo`,
 - polskie etykiety i formatowanie dat w całym interfejsie.
 
-## Znane ograniczenia Etapu 1
+## Znane ograniczenia Etapu 1 (historyczne)
 
 - Dane demonstracyjne nie są rzeczywistymi odkryciami – są oznaczone badge’em `DEMO`
   i usuwane w całości przez „Usuń przykłady”.
-- Nie istnieją jeszcze prawdziwe adaptery źródeł (uczelnie, GitHub/GitLab/Hugging Face, RSS/Atom),
-  skanowanie w tle, analiza Ollama, wektory, deduplikacja ani trendy.
+- W Etapie 1 nie istniały jeszcze prawdziwe adaptery źródeł ani skanowanie w tle.
 - Strona „Kategorie i trendy” pokazuje liczności kategorii; trendy zostaną dodane później.
+
+## Co działa w Etapie 2
+
+- adaptery źródeł: GitHub API, GitLab API, Hugging Face API, DSpace REST API,
+  RSS 2.0, Atom, OAI-PMH (`ListRecords`, `oai_dc`) oraz strony HTML z listą odnośników,
+- rejestr adapterów `ISourceAdapterResolver` wybierany na podstawie `Source.SourceType`
+  (typ `Atom` wykorzystuje wspólny adapter RSS/Atom),
+- `IHttpClientFactory` z nazwanym klientem `RadarSources`: timeout 30 s, limit 2 MB,
+  nagłówki `User-Agent` i `Accept`; token API jest czytany z `Source.Configuration`
+  (`{"token":"..."}`) i opcjonalnie przekazywany jako `Bearer`/`PRIVATE-TOKEN`,
+- formularz „Nowe źródło” na stronie Źródła: walidacja adresu http/https, unikalna nazwa,
+  automatyczne mapowanie typu źródła na metodę pobierania, ograniczenie interwału (5–10080 min)
+  oraz przycisk „Skanuj” przy każdym źródle rzeczywistym,
+- `ScanService`: zapis `ScanHistory`, aktualizacja `LastScanDate`, `LastSuccessfulScan`
+  i `LastError`, pomijanie źródeł `IsDemo`, limit materiałów na źródło,
+- idempotentny zapis w ramach jednego źródła po kluczu `(SourceId, ExternalId)`
+  z aktualizacją istniejącego odkrycia i skrótem SHA256 treści,
+- `BackgroundScanJob` (`BackgroundService`) uruchamiany w procesie Web: pierwszy skan
+  po `StartDelaySeconds`, kolejne co `IntervalMinutes`, tylko dla aktywnych i zaległych źródeł,
+- nowe odkrycia są oznaczane jako `Candidate` / `Oczekuje na AI` i **nie** mają badge’u `DEMO`,
+- testy jednostkowe parserów wszystkich adapterów, testy `ScanService`, `SourceService.CreateAsync`
+  oraz test integracyjny formularza i przycisku skanowania.
+
+## Znane ograniczenia Etapu 2
+
+- Nie ma jeszcze analizy AI/Ollama, wektorów, oceny potencjału innowacji, trendów
+  ani deduplikacji między źródłami.
+- Idempotencja obowiązuje wyłącznie w ramach jednego źródła; ten sam materiał
+  z dwóch różnych źródeł może zostać zapisany dwukrotnie.
+- Adapter HTML jest heurystyką opartą na odnośnikach w obszarach `article`, `main`,
+  `li`, `h2` i `h3`; najlepiej działa na prostych listach aktualności.
+- OAI-PMH pobiera maksymalnie 5 stron wyników (`resumptionToken`).
+- Token API jest przechowywany jako zwykły tekst w `Source.Configuration`; w produkcji
+  należy zabezpieczyć bazę danych.
 - Instalator EXE nie jest jeszcze zbudowany; na tym środowisku (Linux) zostanie przygotowany
   skrypt Inno Setup, a kompilacja `RadarInnowacji-Setup.exe` odbędzie się na maszynie Windows (Etap 8).
 
 ## Dalsze etapy
 
-Etap 2 – rzeczywiste adaptery źródeł i skanowanie w tle.
+Zgodnie z `src/MainJob.txt`: Etap 3 – Radar repozytoriów, Etap 4 – Radar wiadomości,
+Etap 5 – analiza AI (Ollama) i ocena potencjału innowacji.
 Każdy etap jest wykonywany wyłącznie po akceptacji poprzedniego.

@@ -53,6 +53,21 @@ public static class UiLabels
         _ => status.ToString()
     };
 
+    public static string Zrodlo(SourceType type) => type switch
+    {
+        SourceType.OaiPmh => "OAI-PMH (uczelnia)",
+        SourceType.Dspace => "DSpace API (uczelnia)",
+        SourceType.Rss => "RSS",
+        SourceType.Atom => "Atom",
+        SourceType.GitHubApi => "GitHub API",
+        SourceType.GitLabApi => "GitLab API",
+        SourceType.HuggingFaceApi => "Hugging Face API",
+        SourceType.HtmlPage => "Strona HTML",
+        SourceType.Manual => "Wpis ręczny",
+        SourceType.Demo => "Dane demonstracyjne",
+        _ => type.ToString()
+    };
+
     public static string Data(DateTime? value) => value is null
         ? "brak danych"
         : value.Value.ToLocalTime().ToString("dd.MM.yyyy", Polski);

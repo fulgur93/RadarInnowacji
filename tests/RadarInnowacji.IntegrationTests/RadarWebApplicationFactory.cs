@@ -16,6 +16,7 @@ public sealed class RadarWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("RADAR_PORT", "0");
         Environment.SetEnvironmentVariable("RADAR_OPEN_BROWSER", "false");
         Environment.SetEnvironmentVariable("RADAR_SINGLE_INSTANCE", "false");
+        Environment.SetEnvironmentVariable("RADAR_SCANNING_ENABLED", "false");
         Environment.SetEnvironmentVariable("RADAR_DATA_DIR", testDataDirectory);
         Environment.SetEnvironmentVariable("RADAR_LOG_DIR", Path.Combine(testDataDirectory, "logs"));
     }
@@ -28,7 +29,8 @@ public sealed class RadarWebApplicationFactory : WebApplicationFactory<Program>
             {
                 ["Radar:Port"] = "0",
                 ["Radar:OpenBrowser"] = "false",
-                ["Radar:SingleInstance"] = "false"
+                ["Radar:SingleInstance"] = "false",
+                ["Radar:Scanning:Enabled"] = "false"
             }));
     }
 }

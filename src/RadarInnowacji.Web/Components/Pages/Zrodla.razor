@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject ISourceService SourceService
 @inject IDemoDataService DemoService
+@inject IScanService ScanService
 
 <PageTitle>Źródła danych — Radar Innowacji</PageTitle>
 
@@ -55,7 +56,15 @@
                                     <td><span class="small">@UiLabels.DataCzas(source.LastSuccessfulScan)</span></td>
                                     <td>@source.Discoveries.Count</td>
                                     <td><span class="badge @(source.IsActive ? "bg-success" : "bg-secondary")">@(source.IsActive ? "Tak" : "Nie")</span></td>
-                                    <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => WybierzAsync(source.Id)">Edytuj</button></td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => WybierzAsync(source.Id)">Edytuj</button>
+                                            @if (!source.IsDemo)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => SkanujAsync(source.Id)">Skanuj</button>
+                                            }
+                                        </div>
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -89,6 +98,42 @@
             </div>
         </div>
 
+        <div class="card dashboard-card mb-3">
+            <div class="card-header dashboard-card-header">Nowe źródło</div>
+            <div class="card-body">
+                <label class="form-label form-label-sm">Nazwa</label>
+                <input class="form-control form-control-sm mb-2" @bind="nowaNazwa" placeholder="np. Portal wiadomości AGH" />
+                <label class="form-label form-label-sm">Adres URL</label>
+                <input class="form-control form-control-sm mb-2" @bind="nowyUrl" placeholder="https://..." />
+                <label class="form-label form-label-sm">Radar</label>
+                <select class="form-select form-select-sm mb-2" @bind="nowyRadar">
+                    @foreach (var radar in Enum.GetValues<RadarKind>())
+                    {
+                        <option value="@radar">@UiLabels.Radar(radar)</option>
+                    }
+                </select>
+                <label class="form-label form-label-sm">Typ źródła</label>
+                <select class="form-select form-select-sm mb-2" @bind="nowyTyp">
+                    @foreach (var typ in SourceDefaults.SupportedTypes)
+                    {
+                        <option value="@typ">@UiLabels.Zrodlo(typ)</option>
+                    }
+                </select>
+                <label class="form-label form-label-sm">Interwał skanowania (minuty)</label>
+                <input type="number" class="form-control form-control-sm mb-2" @bind="nowyInterwal" min="5" max="10080" />
+                <label class="form-label form-label-sm">Token API (opcjonalnie)</label>
+                <input type="password" class="form-control form-control-sm mb-2" @bind="nowyToken" placeholder="token dostępu" />
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" @bind="nowyAktywny" id="nowyAktywny" />
+                    <label class="form-check-label form-label-sm" for="nowyAktywny">Źródło aktywne</label>
+                </div>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-sm btn-primary" @onclick="DodajZrodloAsync">Dodaj źródło</button>
+                </div>
+                <p class="small text-muted mt-2 mb-0">Token jest zapisywany w konfiguracji źródła i nie jest wyświetlany w listach.</p>
+            </div>
+        </div>
+
         <div class="card dashboard-card">
             <div class="card-header dashboard-card-header">Dane demonstracyjne</div>
             <div class="card-body d-grid gap-2">
@@ -107,6 +152,13 @@
     private bool aktywne;
     private int interwal = 60;
     private string komunikat = string.Empty;
+    private string nowaNazwa = string.Empty;
+    private string nowyUrl = string.Empty;
+    private RadarKind nowyRadar = RadarKind.Uczelnia;
+    private SourceType nowyTyp = SourceType.Rss;
+    private int nowyInterwal = 60;
+    private string nowyToken = string.Empty;
+    private bool nowyAktywny = true;
 
     protected override async Task OnInitializedAsync() => await OdswiezAsync();
 
@@ -133,6 +185,49 @@
         komunikat = "Konfiguracja źródła została zapisana.";
         edytowany = null;
         edytowanyId = null;
+        await OdswiezAsync();
+    }
+
+    private async Task DodajZrodloAsync()
+    {
+        try
+        {
+            var source = await SourceService.CreateAsync(
+                nowaNazwa,
+                nowyUrl,
+                nowyRadar,
+                nowyTyp,
+                nowyInterwal,
+                nowyAktywny,
+                nowyToken);
+
+            komunikat = $"Dodano źródło {source.Name}.";
+            nowaNazwa = string.Empty;
+            nowyUrl = string.Empty;
+            nowyToken = string.Empty;
+        }
+        catch (Exception exception)
+        {
+            komunikat = $"Nie udało się dodać źródła: {exception.Message}";
+        }
+
+        await OdswiezAsync();
+    }
+
+    private async Task SkanujAsync(int id)
+    {
+        try
+        {
+            var result = await ScanService.ScanSourceAsync(id);
+            komunikat = result.Status == ScanStatus.Succeeded
+                ? $"Skan źródła {result.SourceName}: znaleziono {result.ItemsFound}, nowych {result.ItemsNew}."
+                : $"Skan źródła {result.SourceName} nie powiódł się: {result.ErrorMessage}";
+        }
+        catch (Exception exception)
+        {
+            komunikat = $"Skan nie powiódł się: {exception.Message}";
+        }
+
         await OdswiezAsync();
     }
 
