@@ -9,6 +9,30 @@ namespace RadarInnowacji.Tests;
 public class DiscoveryServiceTests
 {
     [Fact]
+    public async Task GetPageAsync_FrazaSzukaTakzeWTresciIReadme()
+    {
+        using var database = new SqliteTestDatabase();
+        var source = SourceTestFactory.Create(SourceType.GitHubApi, "https://api.github.com");
+        source.Radar = RadarKind.Repozytorium;
+        database.Context.Sources.Add(source);
+        database.Context.Discoveries.Add(new RadarInnowacji.Core.Entities.Discovery
+        {
+            Source = source,
+            Title = "lab/greenhouse",
+            Description = "Sterownik szklarni",
+            RawContent = "Sterownik szklarni\n\n# Greenhouse\nWorking Prototype of an irrigation controller.",
+            SourceUrl = "https://github.com/lab/greenhouse",
+            ExternalId = "1"
+        });
+        await database.Context.SaveChangesAsync();
+        var service = new DiscoveryService(database.Context);
+
+        var page = await service.GetPageAsync(new DiscoveryFilter { Radar = RadarKind.Repozytorium, SearchText = "prototype" });
+
+        Assert.Equal("lab/greenhouse", Assert.Single(page.Items).Title);
+    }
+
+    [Fact]
     public async Task GetPageAsync_ZwracaWszystkieDaneDemo()
     {
         using var database = new SqliteTestDatabase();

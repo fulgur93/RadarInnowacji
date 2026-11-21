@@ -130,10 +130,10 @@
         <div class="mt-3 d-flex gap-2 flex-wrap">
             <button type="button" class="btn btn-sm btn-primary" @onclick="SzukajAsync">Szukaj</button>
             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="WyczyśćAsync">Wyczyść filtry</button>
-            @if (Radar is not null)
-            {
-                <span class="align-self-center text-muted small">Skanowanie źródeł zostanie dodane w kolejnym etapie.</span>
-            }
+            <span class="align-self-center text-muted small">
+                Wyszukiwanie filtruje odkrycia zebrane przez skany źródeł (tytuł, opis, treść i README).
+                Nowe materiały pobiera <a href="/zrodla">skanowanie źródeł</a>.
+            </span>
         </div>
     </div>
 </div>
@@ -146,7 +146,22 @@
     <div class="card-body table-responsive">
         @if (wyniki.Items.Count == 0)
         {
-            <div class="empty-panel">Brak odkryć spełniających kryteria. Spróbuj zmienić zakres dat lub załaduj dane demonstracyjne.</div>
+            <div class="empty-panel">
+                @if (zrodla.Count == 0)
+                {
+                    <span>Ten radar nie ma jeszcze żadnych źródeł. Dodaj źródło w <a href="/zrodla">Źródłach danych</a>
+                        i uruchom skan albo załaduj dane demonstracyjne.</span>
+                }
+                else if (zrodla.Where(x => x.IsActive && !x.IsDemo).All(x => x.LastScanDate is null) && !zrodla.Any(x => x.IsDemo))
+                {
+                    <span>Źródła tego radaru nie zostały jeszcze przeskanowane. Kliknij „Skanuj” w <a href="/zrodla">Źródłach danych</a>
+                        albo poczekaj na skan w tle.</span>
+                }
+                else
+                {
+                    <span>Brak odkryć spełniających kryteria. Spróbuj zmienić frazę lub zakres dat.</span>
+                }
+            </div>
         }
         else
         {

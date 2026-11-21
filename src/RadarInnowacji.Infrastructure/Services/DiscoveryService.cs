@@ -122,6 +122,7 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
             query = query.Where(x =>
                 x.Title.ToLower().Contains(term) ||
                 x.Description.ToLower().Contains(term) ||
+                x.RawContent.ToLower().Contains(term) ||
                 (x.Author != null && x.Author.ToLower().Contains(term)) ||
                 (x.Organization != null && x.Organization.ToLower().Contains(term)));
         }
