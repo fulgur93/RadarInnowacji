@@ -16,6 +16,9 @@ public sealed class RepositoryInfo
     public string ProjectId { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
 
+    /// <summary>Stały klucz deduplikacji w obrębie platformy: {host}/{ID projektu}, odporny na zmianę nazwy.</summary>
+    public string CanonicalKey { get; set; } = string.Empty;
+
     public int Stars { get; set; }
     public int Forks { get; set; }
     public int? OpenIssues { get; set; }
@@ -32,6 +35,12 @@ public sealed class RepositoryInfo
     public string Languages { get; set; } = "{}";
     public bool? HasReadme { get; set; }
     public int? ReadmeLength { get; set; }
+
+    /// <summary>Skrót znormalizowanego README (tylko dla niebanalnych README); służy do łączenia kopii.</summary>
+    public string? ReadmeHash { get; set; }
+
+    /// <summary>Powód uznania projektu za szum (np. niezmieniony szablon README); null = projekt w porządku.</summary>
+    public string? NoiseReason { get; set; }
 
     public DateTime MetadataUpdatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? DetailsFetchedAt { get; set; }

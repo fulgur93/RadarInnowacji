@@ -1,5 +1,6 @@
 using System.Text.Json;
 using RadarInnowacji.Core.Entities;
+using RadarInnowacji.Core.Enums;
 using RadarInnowacji.Core.Models;
 using RadarInnowacji.Infrastructure.Adapters;
 
@@ -22,15 +23,26 @@ public static class RepositoryContent
     /// <summary>Po tylu dniach aktywności od pobrania szczegółów README jest pobierane ponownie.</summary>
     public static readonly TimeSpan DetailsRefreshAfterActivity = TimeSpan.FromDays(7);
 
-    public static RepositoryInfo Create(RepositoryMetadata metadata, DateTime now)
+    /// <summary>Klucz deduplikacji w obrębie platformy: host strony projektu i ID z API (stałe mimo zmiany nazwy).</summary>
+    public static string CanonicalKey(SourceItem item)
+    {
+        var host = Uri.TryCreate(item.SourceUrl, UriKind.Absolute, out var uri)
+            ? uri.Host.ToLowerInvariant()
+            : item.Repository?.Platform.ToLowerInvariant() ?? "unknown";
+        return Limit($"{host}/{item.ExternalId}", ContentLimits.MaxTitleLength)!;
+    }
+
+    public static RepositoryInfo Create(SourceItem item, DateTime now)
     {
         var info = new RepositoryInfo();
-        UpdateMetadata(info, metadata, now);
+        UpdateMetadata(info, item, now);
         return info;
     }
 
-    public static void UpdateMetadata(RepositoryInfo info, RepositoryMetadata metadata, DateTime now)
+    public static void UpdateMetadata(RepositoryInfo info, SourceItem item, DateTime now)
     {
+        var metadata = item.Repository ?? throw new ArgumentException("Brak metadanych repozytorium.", nameof(item));
+        info.CanonicalKey = CanonicalKey(item);
         info.Platform = metadata.Platform;
         info.ProjectId = Limit(metadata.ProjectId, ContentLimits.MaxTitleLength)!;
         info.FullName = Limit(metadata.FullName, ContentLimits.MaxTitleLength)!;
@@ -63,7 +75,22 @@ public static class RepositoryContent
         }
 
         var readme = NullIfEmpty(details.Readme);
+        var discovery = info.Discovery;
         info.DetailsError = null;
+        info.ReadmeHash = ReadmeFingerprint(readme);
+
+        // Szum rozpoznany po README zostaje w bazie (z powodem), ale nie trafi do analizy AI.
+        var noise = RepositoryNoiseFilter.ClassifyReadme(discovery.Description, readme);
+        info.NoiseReason = noise?.Label;
+        if (noise is not null && discovery.ProcessingStatus == ProcessingStatus.Pending)
+        {
+            discovery.ProcessingStatus = ProcessingStatus.Skipped;
+        }
+        else if (noise is null && discovery.ProcessingStatus == ProcessingStatus.Skipped)
+        {
+            discovery.ProcessingStatus = ProcessingStatus.Pending;
+        }
+
         info.HasReadme = readme is not null;
         info.ReadmeLength = readme?.Length;
         info.Languages = JsonSerializer.Serialize(details.Languages, LanguagesJson);
@@ -71,7 +98,6 @@ public static class RepositoryContent
         info.DefaultBranch = Limit(details.DefaultBranch, 200) ?? info.DefaultBranch;
         info.DemoUrl = Limit(DemoLinkDetector.Find(info.HomepageUrl, readme, Owner(info)), ContentLimits.MaxSourceUrlLength);
 
-        var discovery = info.Discovery;
         var content = string.IsNullOrWhiteSpace(discovery.Description)
             ? readme ?? string.Empty
             : readme is null ? discovery.Description : $"{discovery.Description}\n\n{readme}";
@@ -108,6 +134,27 @@ public static class RepositoryContent
         {
             return new Dictionary<string, double>();
         }
+    }
+
+    /// <summary>Minimalna długość znormalizowanego README, od której skrót służy do łączenia kopii.</summary>
+    public const int MinFingerprintLength = 300;
+
+    /// <summary>
+    /// Skrót README odporny na różnice w adresach, odznakach i formatowaniu (kopie GitHub ↔ GitLab
+    /// często różnią się tylko linkami). Krótkie README nie dostają skrótu, żeby nie łączyć przypadkiem.
+    /// </summary>
+    public static string? ReadmeFingerprint(string? readme)
+    {
+        if (string.IsNullOrWhiteSpace(readme))
+        {
+            return null;
+        }
+
+        var text = RepositoryNoiseFilter.MeaningfulText(readme).ToLowerInvariant();
+        var normalized = new string(text.Where(char.IsLetterOrDigit).ToArray());
+        return normalized.Length < MinFingerprintLength
+            ? null
+            : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalized)));
     }
 
     private static string? Owner(RepositoryInfo info)

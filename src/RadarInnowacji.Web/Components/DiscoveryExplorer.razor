@@ -119,6 +119,11 @@
                     <input class="form-check-input" type="checkbox" @bind="tylkoPotencjalne" id="tylkoPotencjalne" />
                     <label class="form-check-label form-label-sm" for="tylkoPotencjalne">Tylko potencjalne innowacje</label>
                 </div>
+                <div class="form-check mb-1">
+                    <input class="form-check-input" type="checkbox" @bind="pokazSzum" id="pokazSzum" />
+                    <label class="form-check-label form-label-sm" for="pokazSzum"
+                           title="Repozytoria uznane za szum po pobraniu README, np. niezmieniony szablon">Pokaż odfiltrowany szum</label>
+                </div>
             </div>
         </div>
 
@@ -216,6 +221,7 @@
     private DiscoverySort sortowanie = DiscoverySort.DiscoveredAt;
     private bool malejaco = true;
     private bool tylkoPotencjalne;
+    private bool pokazSzum;
 
     private DiscoveryPage wyniki = new();
     private IReadOnlyList<Source> zrodla = Array.Empty<Source>();
@@ -258,6 +264,7 @@
         if (Enum.TryParse<ProcessingStatus>(analizaAi, out var processing)) filter.ProcessingStatus = processing;
         if (Enum.TryParse<DiscoveryStatus>(status, out var discoveryStatus)) filter.Status = discoveryStatus;
         if (tylkoPotencjalne) filter.IsPotentialInnovation = true;
+        filter.ExcludeNoise = !pokazSzum;
 
         wyniki = await DiscoveryService.GetPageAsync(filter);
     }
@@ -319,6 +326,7 @@
         if (Enum.TryParse<ProcessingStatus>(analizaAi, out var processing)) filter.ProcessingStatus = processing;
         if (Enum.TryParse<DiscoveryStatus>(status, out var discoveryStatus)) filter.Status = discoveryStatus;
         if (tylkoPotencjalne) filter.IsPotentialInnovation = true;
+        filter.ExcludeNoise = !pokazSzum;
 
         wyniki = await DiscoveryService.GetPageAsync(filter);
     }

@@ -97,7 +97,8 @@ public static class RepositorySearchUrlBuilder
         var filter = term.Kind == RepositorySearchTermKind.Keyword
             ? $"search={Uri.EscapeDataString(term.Value)}"
             : $"topic={Uri.EscapeDataString(term.Value)}";
-        var url = $"{apiBase}/projects?{filter}&visibility=public&archived=false" +
+        // active=true pomija też projekty zaplanowane do usunięcia (bez tego to większość wyników gitlab.com).
+        var url = $"{apiBase}/projects?{filter}&visibility=public&archived=false&active=true" +
                   $"&order_by=id&sort={(ascending ? "asc" : "desc")}&per_page={PageSize}";
         if (idAfter is not null)
         {

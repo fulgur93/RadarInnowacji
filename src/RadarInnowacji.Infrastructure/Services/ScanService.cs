@@ -64,6 +64,9 @@ public sealed class ScanService(
                 var fetched = await adapter.FetchResultAsync(source, maxItems, cancellationToken);
                 var limited = fetched.Items.Take(maxItems).ToList();
                 var added = 0;
+                var filterNoise = options.Value.Repositories.FilterNoise;
+                var skipped = new Dictionary<string, int>(StringComparer.Ordinal);
+                var duplicates = 0;
 
                 foreach (var item in limited)
                 {
@@ -73,6 +76,25 @@ public sealed class ScanService(
                         .FirstOrDefaultAsync(
                             x => x.SourceId == source.Id && x.ExternalId == item.ExternalId,
                             cancellationToken);
+
+                    if (existing is null && item.Repository is not null)
+                    {
+                        if (filterNoise && RepositoryNoiseFilter.ClassifyListing(item) is { } noise)
+                        {
+                            skipped[noise.Label] = skipped.GetValueOrDefault(noise.Label) + 1;
+                            continue;
+                        }
+
+                        // Ten sam projekt znaleziony już przez inne źródło tej samej platformy.
+                        var key = RepositoryContent.CanonicalKey(item);
+                        if (await db.Repositories.AnyAsync(
+                                x => x.CanonicalKey == key && x.Discovery.SourceId != source.Id,
+                                cancellationToken))
+                        {
+                            duplicates++;
+                            continue;
+                        }
+                    }
 
                     if (existing is null)
                     {
@@ -93,10 +115,11 @@ public sealed class ScanService(
 
                 await db.SaveChangesAsync(cancellationToken);
                 var detailsNote = await EnrichRepositoriesAsync(source, adapter, cancellationToken);
+                var filterNote = FilterNote(skipped, duplicates);
 
                 var status = fetched.IsComplete ? ScanStatus.Succeeded : ScanStatus.Partial;
                 var scanWarning = Limit(fetched.Warning);
-                var warning = Limit(string.Join(" ", new[] { fetched.Warning, detailsNote }.Where(x => x is not null)));
+                var warning = Limit(string.Join(" ", new[] { fetched.Warning, detailsNote, filterNote }.Where(x => x is not null)));
                 warning = string.IsNullOrEmpty(warning) ? null : warning;
 
                 var finishedAt = DateTime.UtcNow;
@@ -226,6 +249,23 @@ public sealed class ScanService(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        var linked = 0;
+        try
+        {
+            linked = await new RepositoryDeduplicator(db).LinkDuplicatesAsync(
+                batch.Results.Where(x => x.Details is not null).Select(x => x.Repository).ToList(),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Deduplikacja repozytoriów źródła {Source} nie powiodła się.", source.Name);
+        }
+
+        var noise = batch.Results.Count(x => x.Repository.NoiseReason is not null);
+        var notes = new List<string>();
+        if (noise > 0) notes.Add($"Oznaczono jako szum po README: {noise}.");
+        if (linked > 0) notes.Add($"Połączono z tym samym projektem na innej platformie: {linked}.");
         logger.LogInformation(
             "Szczegóły repozytoriów źródła {Source}: {Done} z {Pending}. {Stop}",
             source.Name,
@@ -233,9 +273,29 @@ public sealed class ScanService(
             pending.Count,
             batch.StopReason);
 
-        return batch.StopReason is null
-            ? null
-            : $"README pobrano dla {batch.Results.Count} z {pending.Count} projektów; reszta w kolejnym skanie. {batch.StopReason}";
+        if (batch.StopReason is not null)
+        {
+            notes.Add($"README pobrano dla {batch.Results.Count} z {pending.Count} projektów; reszta w kolejnym skanie. {batch.StopReason}");
+        }
+
+        return notes.Count == 0 ? null : string.Join(" ", notes);
+    }
+
+    private static string? FilterNote(IReadOnlyDictionary<string, int> skipped, int duplicates)
+    {
+        var parts = new List<string>();
+        if (skipped.Count > 0)
+        {
+            parts.Add($"Pominięto {skipped.Values.Sum()} ({string.Join(", ",
+                skipped.OrderByDescending(x => x.Value).Select(x => $"{x.Key}: {x.Value}"))}).");
+        }
+
+        if (duplicates > 0)
+        {
+            parts.Add($"Duplikaty projektów z innych źródeł: {duplicates}.");
+        }
+
+        return parts.Count == 0 ? null : string.Join(" ", parts);
     }
 
     private static string? Limit(string? value) =>
@@ -243,7 +303,7 @@ public sealed class ScanService(
 
     private static Discovery CreateDiscovery(Source source, SourceItem item, string hash, DateTime now) => new()
     {
-        Repository = item.Repository is null ? null : RepositoryContent.Create(item.Repository, now),
+        Repository = item.Repository is null ? null : RepositoryContent.Create(item, now),
         Title = item.Title,
         Description = item.Description,
         RawContent = item.Content,
@@ -286,11 +346,11 @@ public sealed class ScanService(
         {
             if (discovery.Repository is null)
             {
-                discovery.Repository = RepositoryContent.Create(item.Repository, now);
+                discovery.Repository = RepositoryContent.Create(item, now);
             }
             else
             {
-                RepositoryContent.UpdateMetadata(discovery.Repository, item.Repository, now);
+                RepositoryContent.UpdateMetadata(discovery.Repository, item, now);
                 if (RepositoryContent.NeedsDetailsRefresh(discovery.Repository, item.LastActivityAt))
                 {
                     discovery.Repository.DetailsFetchedAt = null;

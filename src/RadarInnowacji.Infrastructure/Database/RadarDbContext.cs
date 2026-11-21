@@ -73,6 +73,9 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
             entity.Property(x => x.ReadmePath).HasMaxLength(500);
             entity.Property(x => x.Languages).HasMaxLength(4000).HasDefaultValue("{}");
             entity.Property(x => x.DetailsError).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.Property(x => x.CanonicalKey).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength).HasDefaultValue("");
+            entity.Property(x => x.ReadmeHash).HasMaxLength(64);
+            entity.Property(x => x.NoiseReason).HasMaxLength(300);
 
             entity.HasOne(x => x.Discovery)
                 .WithOne(x => x.Repository)
@@ -83,6 +86,9 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
             entity.HasIndex(x => new { x.Platform, x.FullName });
             entity.HasIndex(x => x.DetailsFetchedAt);
             entity.HasIndex(x => x.Stars);
+            entity.HasIndex(x => x.CanonicalKey);
+            entity.HasIndex(x => x.ReadmeHash);
+            entity.HasIndex(x => x.NoiseReason);
         });
 
         modelBuilder.Entity<InnovationProject>(entity =>

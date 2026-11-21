@@ -94,7 +94,7 @@ public class RepositoryQueryTests
 
         Assert.Equal(2, urls.Count);
         Assert.StartsWith("https://gitlab.uczelnia.edu.pl/api/v4/projects?search=nowa%20metoda&", urls[0]);
-        Assert.Contains("visibility=public&archived=false", urls[0]);
+        Assert.Contains("visibility=public&archived=false&active=true", urls[0]);
         Assert.Contains("order_by=id&sort=desc&per_page=100", urls[0]);
         Assert.Contains("last_activity_after=2026-11-14T00%3A00%3A00Z", urls[0]);
         Assert.DoesNotContain("created_after", urls[0]);

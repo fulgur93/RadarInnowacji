@@ -13,7 +13,11 @@ public sealed record RepositoryMetadata(
     string? DefaultBranch,
     string? ReadmePath,
     bool IsFork,
-    bool IsArchived);
+    bool IsArchived)
+{
+    public bool IsTemplate { get; init; }
+    public bool IsMirror { get; init; }
+}
 
 /// <summary>Szczegóły repozytorium pobierane osobnymi zapytaniami.</summary>
 /// <param name="Readme">Treść README (markdown) albo null, gdy repozytorium go nie ma.</param>

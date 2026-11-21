@@ -325,6 +325,13 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("CanonicalKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
+
                     b.Property<string>("DefaultBranch")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
@@ -378,6 +385,10 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Property<DateTime>("MetadataUpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("NoiseReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("OpenIssues")
                         .HasColumnType("INTEGER");
 
@@ -389,6 +400,10 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Property<string>("ProjectId")
                         .IsRequired()
                         .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReadmeHash")
+                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("ReadmeLength")
@@ -403,10 +418,16 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CanonicalKey");
+
                     b.HasIndex("DetailsFetchedAt");
 
                     b.HasIndex("DiscoveryId")
                         .IsUnique();
+
+                    b.HasIndex("NoiseReason");
+
+                    b.HasIndex("ReadmeHash");
 
                     b.HasIndex("Stars");
 

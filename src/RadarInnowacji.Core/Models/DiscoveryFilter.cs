@@ -14,6 +14,9 @@ public sealed class DiscoveryFilter
     public ProcessingStatus? ProcessingStatus { get; set; }
     public DiscoveryStatus? Status { get; set; }
     public bool? IsPotentialInnovation { get; set; }
+
+    /// <summary>Ukrywa repozytoria uznane za szum (szablony, szczątkowe README itp.).</summary>
+    public bool ExcludeNoise { get; set; } = true;
     public DiscoverySort SortBy { get; set; } = DiscoverySort.DiscoveredAt;
     public bool SortDescending { get; set; } = true;
     public int PageNumber { get; set; } = 1;

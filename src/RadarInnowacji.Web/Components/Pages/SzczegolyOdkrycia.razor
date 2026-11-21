@@ -112,6 +112,12 @@ else
                     <div class="card-header dashboard-card-header">Repozytorium @repo.Platform</div>
                     <div class="card-body">
                         <div class="fw-semibold small mb-2 text-break">@repo.FullName</div>
+                        @if (repo.NoiseReason is not null)
+                        {
+                            <div class="alert alert-secondary py-1 px-2 small mb-2">
+                                Odfiltrowane jako szum: @repo.NoiseReason. Materiał nie trafi do analizy AI.
+                            </div>
+                        }
                         <div class="d-flex flex-wrap gap-1 mb-2">
                             <span class="badge bg-light text-dark border">★ @repo.Stars</span>
                             <span class="badge bg-light text-dark border">Forki: @repo.Forks</span>
@@ -176,6 +182,24 @@ else
                     }
                 </div>
             </div>
+
+            @if (model.RelatedDiscoveries.Count > 0)
+            {
+                <div class="card dashboard-card mb-3">
+                    <div class="card-header dashboard-card-header">Ten sam projekt w innych miejscach</div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0 small">
+                            @foreach (var related in model.RelatedDiscoveries)
+                            {
+                                <li class="mb-2">
+                                    <a href="/odkrycia/@related.Id">@related.Title</a>
+                                    <div class="text-muted">@related.SourceName · @UiLabels.Data(related.PublishedAt)</div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
 
             <div class="card dashboard-card">
                 <div class="card-header dashboard-card-header">Podobne odkrycia</div>

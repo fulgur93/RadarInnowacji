@@ -81,6 +81,7 @@ nie musi wywoływać `dotnet ef database update`.
 | `Repositories:MaxRateLimitWaitSeconds` | `65` | Jak długo czekać na odnowienie limitu API; dłuższy limit kończy skan jako częściowy |
 | `Repositories:OverlapHours` | `2` | GitHub: ile ostatnich godzin sprawdzać ponownie (opóźnienie indeksowania) |
 | `Repositories:MaxDetailsPerScan` | `30` | Ile projektów na skan uzupełnić o README, języki i licencję (2–3 zapytania na projekt) |
+| `Repositories:FilterNoise` | `true` | Pomijanie forków, kopii, szablonów, list „awesome”, dotfiles, zadań z kursów i projektów do usunięcia |
 
 Zmienne środowiskowe nadpisują ustawienia uruchomieniowe:
 `RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`,

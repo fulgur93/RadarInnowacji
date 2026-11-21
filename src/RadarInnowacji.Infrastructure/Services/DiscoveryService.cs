@@ -53,6 +53,17 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
             .Distinct()
             .ToList();
 
+        var projectIds = discovery.ProjectLinks.Select(x => x.InnovationProjectId).ToList();
+        var related = projectIds.Count == 0
+            ? new List<Discovery>()
+            : await db.Discoveries
+                .Include(x => x.Source)
+                .Include(x => x.ProjectLinks).ThenInclude(x => x.Project).ThenInclude(x => x.CategoryLinks).ThenInclude(x => x.Category)
+                .Where(x => x.Id != id && x.ProjectLinks.Any(link => projectIds.Contains(link.InnovationProjectId)))
+                .OrderBy(x => x.PublishedAt)
+                .Take(10)
+                .ToListAsync(cancellationToken);
+
         var similar = categoryIds.Count == 0
             ? new List<Discovery>()
             : await db.Discoveries
@@ -75,7 +86,8 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
                 .Distinct()
                 .OrderBy(x => x)
                 .ToList(),
-            SimilarDiscoveries = similar.Select(MapToListItem).ToList(),
+            RelatedDiscoveries = related.Select(MapToListItem).ToList(),
+            SimilarDiscoveries = similar.Where(x => related.All(r => r.Id != x.Id)).Select(MapToListItem).ToList(),
             AiHistory = discovery.AiAnalyses.OrderByDescending(x => x.AnalyzedAt).ToList()
         };
     }
@@ -148,6 +160,11 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
         if (filter.Status is not null)
         {
             query = query.Where(x => x.Status == filter.Status.Value);
+        }
+
+        if (filter.ExcludeNoise)
+        {
+            query = query.Where(x => x.Repository == null || x.Repository.NoiseReason == null);
         }
 
         if (filter.IsPotentialInnovation is not null)

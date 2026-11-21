@@ -218,6 +218,10 @@ public sealed class GitHubSourceAdapter(
                 null,
                 AdapterHelpers.ReadBool(item, "fork"),
                 AdapterHelpers.ReadBool(item, "archived"))
+            {
+                IsTemplate = AdapterHelpers.ReadBool(item, "is_template"),
+                IsMirror = !string.IsNullOrWhiteSpace(AdapterHelpers.ReadString(item, "mirror_url"))
+            }
         };
     }
 

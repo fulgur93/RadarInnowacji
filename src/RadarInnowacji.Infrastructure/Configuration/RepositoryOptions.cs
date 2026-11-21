@@ -15,6 +15,9 @@ public sealed class RepositoryOptions
     /// <summary>Jak długo skan może czekać na odnowienie limitu API, zanim zakończy się częściowo.</summary>
     public int MaxRateLimitWaitSeconds { get; set; } = 65;
 
+    /// <summary>Pomijanie forków, kopii, szablonów, list „awesome”, dotfiles i zadań z kursów.</summary>
+    public bool FilterNoise { get; set; } = true;
+
     /// <summary>Ile projektów na skan źródła wzbogacić o README i języki (2–3 zapytania na projekt).</summary>
     public int MaxDetailsPerScan { get; set; } = 30;
 

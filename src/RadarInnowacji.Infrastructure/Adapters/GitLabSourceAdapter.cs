@@ -203,6 +203,10 @@ public sealed class GitLabSourceAdapter(
                 item.ValueKind == JsonValueKind.Object && item.TryGetProperty("forked_from_project", out var parent) &&
                 parent.ValueKind == JsonValueKind.Object,
                 AdapterHelpers.ReadBool(item, "archived"))
+            {
+                // Pole mirror jest widoczne tylko z tokenem; bez niego kopie łapie deduplikacja po README.
+                IsMirror = AdapterHelpers.ReadBool(item, "mirror")
+            }
         };
     }
 
