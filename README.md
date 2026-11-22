@@ -494,8 +494,12 @@ Wynik weryfikacji Etapu 8 (Linux, 22.11.2026):
   z katalogu `/`: dashboard, `/projekty`, `/duplikaty`, `/kategorie`, `/ustawienia`, zasoby
   statyczne – HTTP 200; druga instancja wypisała adres działającej i zakończyła się kodem 0;
   po SIGTERM proces zakończył się, a `radar.lock`/`radar.url` zostały usunięte,
-- **nie wykonano** na tym środowisku: kompilacji `RadarInnowacji-Setup.exe` (brak Inno Setup)
-  ani testu instalacji na czystym Windows – do wykonania według listy kontrolnej powyżej.
+- `RadarInnowacji-Setup.exe` (ok. 38 MB) skompilowany przez `installer/build-installer.sh`
+  z Inno Setup 6.7.4 w osobnym prefiksie wine (`~/.wine-inno`),
+- cicha instalacja pod wine: pliki w `%LOCALAPPDATA%\Programs\RadarInnowacji`, instrukcje `.txt`,
+  skróty w menu Start i na pulpicie; cicha deinstalacja usunęła katalog programu,
+- **nie wykonano**: uruchomienia aplikacji pod wine ani testu instalacji na czystym Windows –
+  do wykonania według listy kontrolnej powyżej.
 
 Znane ograniczenia Etapu 8:
 
