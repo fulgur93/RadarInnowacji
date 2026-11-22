@@ -57,7 +57,13 @@ public sealed class PermanentSourcesSeeder(RadarDbContext db) : IPermanentSource
             """{"query":{"keywords":["prototype","proof of concept","novel method","prototyp","nowa metoda","autonomiczny system"],"topics":[],"languages":[],"createdWithinDays":30}}"""),
         new("GitLab – innowacje (PL)", "https://gitlab.com", RadarKind.Repozytorium, SourceType.GitLabApi, 360,
             """{"query":{"keywords":["prototype","proof of concept","novel method","prototyp","nowa metoda","autonomiczny system"],"topics":[],"languages":[],"createdWithinDays":30}}"""),
-        new("Hugging Face – modele/projekty (PL)", "https://huggingface.co/api/models?sort=lastModified&direction=-1&limit=50&search=polish", RadarKind.Repozytorium, SourceType.HuggingFaceApi, 720)
+        new("Hugging Face – modele/projekty (PL)", "https://huggingface.co/api/models?sort=lastModified&direction=-1&limit=50&search=polish", RadarKind.Repozytorium, SourceType.HuggingFaceApi, 720),
+
+        // Repozytoria OAI-PMH polskich uczelni
+        new("RUJ – Repozytorium UJ (OAI-PMH)", "https://ruj.uj.edu.pl/server/oai/request", RadarKind.Uczelnia, SourceType.OaiPmh, 1440),
+        new("AMUR – Repozytorium UAM (OAI-PMH)", "https://repozytorium.amu.edu.pl/server/oai/request", RadarKind.Uczelnia, SourceType.OaiPmh, 1440),
+        new("Repozytorium Uniwersytetu Łódzkiego (OAI-PMH)", "https://dspace.uni.lodz.pl/oai/request", RadarKind.Uczelnia, SourceType.OaiPmh, 1440),
+        new("MOST Wiedzy PG (OAI-PMH)", "https://mostwiedzy.pl/pl/oai-pmh/", RadarKind.Uczelnia, SourceType.OaiPmh, 1440)
     ];
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)
