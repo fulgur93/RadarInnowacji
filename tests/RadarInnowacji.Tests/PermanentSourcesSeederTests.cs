@@ -43,6 +43,17 @@ public class PermanentSourcesSeederTests
         Assert.Contains(uczelnie, x => x.Url.Contains("agh.edu.pl"));
         Assert.Contains(uczelnie, x => x.Url.Contains("pg.edu.pl"));
         Assert.Contains(uczelnie, x => x.Url.Contains("amu.edu.pl"));
+
+        var wiadomosci = await db.Sources
+            .Where(x => x.Radar == RadarKind.Wiadomosci)
+            .ToListAsync();
+        Assert.Equal(5, wiadomosci.Count);
+        Assert.True(wiadomosci.All(x => x.SourceType == SourceType.Rss && x.Url.StartsWith("https://")));
+        Assert.Contains(wiadomosci, x => x.Url.Contains("spidersweb.pl"));
+        Assert.Contains(wiadomosci, x => x.Url.Contains("naukawpolsce.pl"));
+        Assert.Contains(wiadomosci, x => x.Url.Contains("sciencedaily.com"));
+        Assert.Contains(wiadomosci, x => x.Url.Contains("sciencealert.com"));
+        Assert.Contains(wiadomosci, x => x.Url.Contains("newscientist.com"));
     }
 
     [Fact]
@@ -80,7 +91,7 @@ public class PermanentSourcesSeederTests
         var seeder = new PermanentSourcesSeeder(db);
         var added = await seeder.SeedAsync();
 
-        Assert.Equal(3, added);
+        Assert.Equal(PermanentSourcesSeeder.Definitions.Count - 1, added);
         var existing = await db.Sources.SingleAsync(x => x.Name == definition.Name);
         Assert.Equal("https://example.org/wlasny", existing.Url);
         Assert.Equal(RadarKind.Wiadomosci, existing.Radar);

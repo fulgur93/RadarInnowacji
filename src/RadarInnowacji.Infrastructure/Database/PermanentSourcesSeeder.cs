@@ -16,8 +16,9 @@ public sealed record PermanentSourceDefinition(
     string Configuration = "{}");
 
 /// <summary>
-/// Dodaje do pustej bazy rzeczywiste źródła: wyszukiwanie Kickstartera oraz strony,
-/// na których uczelnie publikują projekty studentów. Źródła nie są oznaczone jako DEMO
+/// Dodaje do pustej bazy rzeczywiste źródła: wyszukiwanie Kickstartera, strony,
+/// na których uczelnie publikują projekty studentów, oraz kanały wiadomości naukowo-technologicznych.
+/// Źródła nie są oznaczone jako DEMO
 /// i nie są nadpisywane, jeśli użytkownik już je zmienił.
 /// </summary>
 public sealed class PermanentSourcesSeeder(RadarDbContext db) : IPermanentSourcesSeeder
@@ -58,7 +59,37 @@ public sealed class PermanentSourcesSeeder(RadarDbContext db) : IPermanentSource
             "https://wmi.amu.edu.pl/wydzial/projekty/studenckie-projekty-badawczo-rozwojowe",
             RadarKind.Uczelnia,
             SourceType.HtmlPage,
-            720)
+            720),
+        new(
+            "Spider's Web – technologie",
+            "https://www.spidersweb.pl/feed",
+            RadarKind.Wiadomosci,
+            SourceType.Rss,
+            360),
+        new(
+            "Nauka w Polsce – aktualności",
+            "https://naukawpolsce.pl/rss.xml",
+            RadarKind.Wiadomosci,
+            SourceType.Rss,
+            360),
+        new(
+            "ScienceDaily – najnowsze badania",
+            "https://www.sciencedaily.com/rss/all.xml",
+            RadarKind.Wiadomosci,
+            SourceType.Rss,
+            360),
+        new(
+            "ScienceAlert – odkrycia naukowe",
+            "https://www.sciencealert.com/feed",
+            RadarKind.Wiadomosci,
+            SourceType.Rss,
+            360),
+        new(
+            "New Scientist – wiadomości naukowe",
+            "https://www.newscientist.com/feed/",
+            RadarKind.Wiadomosci,
+            SourceType.Rss,
+            360)
     ];
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)

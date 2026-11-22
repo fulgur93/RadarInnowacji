@@ -90,6 +90,25 @@ public class SourceAdapterTests
     }
 
     [Fact]
+    public async Task RssAdapter_RozpoznajeDateZNierozpoznanymSkrutemStrefy()
+    {
+        var source = SourceTestFactory.Create(SourceType.Rss, "https://example.org/feed.xml");
+        const string xml =
+            """
+            <rss version="2.0"><channel><title>Test</title><item>
+            <title>Nowe badanie</title><link>https://example.org/material/2</link>
+            <pubDate>Sat, 21 Nov 2026 10:24:58 EST</pubDate>
+            </item></channel></rss>
+            """;
+        var adapter = new RssAtomSourceAdapter(new HttpClient(new FakeHttpMessageHandler(_ => FakeHttpMessageHandler.Xml(xml))));
+
+        var items = await adapter.FetchAsync(source);
+
+        var item = Assert.Single(items);
+        Assert.Equal(new DateOnly(2026, 11, 21), DateOnly.FromDateTime(item.PublishedAt!.Value));
+    }
+
+    [Fact]
     public async Task RssAdapter_ParsujeKanalAtom()
     {
         var source = SourceTestFactory.Create(SourceType.Atom, "https://example.org/atom.xml");
@@ -169,7 +188,7 @@ public class SourceAdapterTests
         var source = SourceTestFactory.Create(SourceType.HtmlPage, "https://example.org/aktualnosci");
         const string html =
             """
-            <html><body><main><article><h2><a href="/news/1">Nowy prototyp czujnika powietrza</a></h2><p>Opis projektu</p></article></main></body></html>
+            <html><body><main><article><h2><a href="/news/1">Nowy prototyp czujnika powietrza</a></h2><p>Opis projektu</p><time datetime="2026-11-17">17.11.2026</time></article></main></body></html>
             """;
         var adapter = new HtmlPageSourceAdapter(new HttpClient(new FakeHttpMessageHandler(_ => FakeHttpMessageHandler.Html(html))));
 
@@ -178,6 +197,7 @@ public class SourceAdapterTests
         var item = Assert.Single(items);
         Assert.Equal("Nowy prototyp czujnika powietrza", item.Title);
         Assert.Equal("https://example.org/news/1", item.SourceUrl);
+        Assert.Equal(new DateTime(2026, 11, 17, 0, 0, 0, DateTimeKind.Utc), item.PublishedAt);
     }
 
     [Fact]
@@ -190,7 +210,7 @@ public class SourceAdapterTests
               <nav><ul><li><a href="/kontakt">Bardzo długi link nawigacyjny</a></li></ul></nav>
               <div class="list-news">
                 <a title="Studenci zbudowali rower z rekuperacją" href="/news/1">
-                  <article><h2>Studenci zbudowali rower z rekuperacją</h2><p>Opis projektu</p></article>
+                  <article><h2>Studenci zbudowali rower z rekuperacją</h2><p>Opis projektu</p><span class="date">21.11.2026</span></article>
                 </a>
               </div>
               <div id="pageFooter"><a href="/prywatnosc">Polityka prywatności serwisu</a></div>
@@ -203,5 +223,6 @@ public class SourceAdapterTests
         var item = Assert.Single(items);
         Assert.Equal("Studenci zbudowali rower z rekuperacją", item.Title);
         Assert.Equal("https://example.org/news/1", item.SourceUrl);
+        Assert.Equal(new DateOnly(2026, 11, 21), DateOnly.FromDateTime(item.PublishedAt!.Value));
     }
 }

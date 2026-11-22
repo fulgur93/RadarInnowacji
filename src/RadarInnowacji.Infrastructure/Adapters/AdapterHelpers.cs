@@ -38,8 +38,9 @@ internal static class AdapterHelpers
             return null;
         }
 
+        var text = value.Trim();
         if (DateTimeOffset.TryParse(
-                value,
+                text,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
                 out var parsedOffset))
@@ -47,8 +48,33 @@ internal static class AdapterHelpers
             return parsedOffset.UtcDateTime;
         }
 
-        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
-            ? parsed
+        // Część kanałów RSS podaje skrót strefy (np. EST), którego .NET nie rozpoznaje.
+        var withoutZone = Regex.Replace(text, @"\s+[A-Za-z]{2,5}$", string.Empty);
+        if (DateTimeOffset.TryParse(
+                withoutZone,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal,
+                out parsedOffset))
+        {
+            return parsedOffset.UtcDateTime;
+        }
+
+        // Polskie strony HTML zwykle podają daty jako dd.MM.yyyy.
+        foreach (var format in new[] { "dd.MM.yyyy", "d.M.yyyy", "dd/MM/yyyy" })
+        {
+            if (DateTime.TryParseExact(
+                    text,
+                    format,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var parsed))
+            {
+                return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+            }
+        }
+
+        return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fallback)
+            ? fallback
             : null;
     }
 

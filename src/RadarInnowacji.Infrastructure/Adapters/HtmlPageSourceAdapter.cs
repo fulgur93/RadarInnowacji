@@ -67,14 +67,16 @@ public sealed class HtmlPageSourceAdapter(HttpClient httpClient) : ISourceAdapte
                 description = title;
             }
 
+            var published = FindPublishedDate(link);
+
             items.Add(AdapterHelpers.CreateItem(
                 absolute.ToString(),
                 title,
                 description,
                 description,
                 absolute.ToString(),
-                null,
-                null,
+                published,
+                published,
                 null,
                 source.Name,
                 []));
@@ -85,6 +87,27 @@ public sealed class HtmlPageSourceAdapter(HttpClient httpClient) : ISourceAdapte
 
     private static string? PreferAttribute(string? value) =>
         !string.IsNullOrWhiteSpace(value) && value.Trim().Length >= MinTitleLength ? value : null;
+
+    /// <summary>
+    /// Data publikacji jest czytana z elementu <c>time</c> albo typowych klas daty
+    /// w otaczającym odnośnik artykule. Jeśli jej nie ma, pozostaje NULL.
+    /// </summary>
+    private static DateTime? FindPublishedDate(IElement link)
+    {
+        const string selector = "time[datetime], time, .date, .data, .published, .pub-date";
+        IElement? node = link;
+        for (var level = 0; node is not null && level < 3; level++, node = node.ParentElement)
+        {
+            var candidate = node.QuerySelector(selector);
+            var raw = candidate?.GetAttribute("datetime") ?? candidate?.TextContent;
+            if (AdapterHelpers.ParseDate(raw) is { } parsed)
+            {
+                return parsed;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Strony uczelni mają rozbudowane menu i stopki; bez tego filtra zapełniłyby limit

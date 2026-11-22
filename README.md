@@ -3,11 +3,10 @@
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
 repozytoriach kodu źródłowego, wiadomościach internetowych oraz na portalach crowdfundingowych.
 
-**Status projektu: ETAP 2 – ADAPTERY ŹRÓDEŁ I SKANOWANIE W TLE (zaimplementowany, oczekuje na akceptację).**
-Etapy 0 i 1 zostały wcześniej zaakceptowane przez zamawiającego.
-Etap 3 (radar repozytoriów) jest w toku – dodano w nim moduł wyszukiwania Kickstartera,
-który na życzenie zamawiającego został przeniesiony do osobnego, czwartego radaru
-portali crowdfundingowych (zmiana wobec pierwotnie trójradarowego interfejsu z `src/MainJob.txt`).
+**Status projektu: ETAP 4 – RADAR WIADOMOŚCI (zaimplementowany, oczekuje na akceptację).**
+Etapy 0–3 zostały wcześniej zaakceptowane przez zamawiającego. W Etapie 3, na wyraźne
+życzenie zamawiającego, dodano też osobny, czwarty radar portali crowdfundingowych
+(zmiana wobec pierwotnie trójradarowego interfejsu z `src/MainJob.txt`).
 
 ## Stos technologiczny
 
@@ -154,8 +153,8 @@ Wynik weryfikacji modułu:
 
 - `dotnet build RadarInnowacji.sln -v minimal` – **0 błędów, 0 nowych ostrzeżeń**
   (pozostają 3 wcześniejsze ostrzeżenia `xUnit1031` w `RepositoryDetailsTests`),
-- `dotnet test RadarInnowacji.sln --no-build` – **158 testów zaliczonych**
-  (142 jednostkowych + 16 integracyjnych, w tym przypadki dla `/radar-crowdfunding`
+- `dotnet test RadarInnowacji.sln --no-build` – **159 testów zaliczonych**
+  (143 jednostkowych + 16 integracyjnych, w tym przypadki dla `/radar-crowdfunding`
   i stałych źródeł dostępnych po czystym starcie),
 - test runtime na `127.0.0.1:15194` ze świeżym katalogiem danych: strony `/`, `/zrodla`,
   `/radar-uczelni`, `/radar-repozytoriow`, `/radar-wiadomosci`, `/radar-crowdfunding`,
@@ -184,7 +183,7 @@ Znane ograniczenia modułu Kickstarter:
 
 Bezpośrednio po uruchomieniu na pustej bazie (jeszcze przed pierwszym skanowaniem) startupowy
 `PermanentSourcesSeedJob` – uruchamiany po `DatabaseMigrationJob`, a przed `BackgroundScanJob` –
-dodaje cztery aktywne źródła. Nie są one oznaczone jako `DEMO` i nie wymagają importu ani
+dodaje dziewięć aktywnych źródeł. Nie są one oznaczone jako `DEMO` i nie wymagają importu ani
 ręcznej konfiguracji:
 
 | Źródło | Radar | Typ | Adres |
@@ -193,6 +192,11 @@ ręcznej konfiguracji:
 | AGH – projekty studenckie | uczelnie | `HtmlPage` | `https://www.agh.edu.pl/slowa-kluczowe/projekty-studenckie` |
 | Politechnika Gdańska – Uczelnie Przyszłości | uczelnie | `HtmlPage` | `https://pg.edu.pl/studenci/projekty/uczelnie-przyszlosci/aktualnosci` |
 | UAM WMiI – studenckie projekty badawczo-rozwojowe | uczelnie | `HtmlPage` | `https://wmi.amu.edu.pl/wydzial/projekty/studenckie-projekty-badawczo-rozwojowe` |
+| Spider's Web – technologie | wiadomości | `Rss` | `https://www.spidersweb.pl/feed` |
+| Nauka w Polsce – aktualności | wiadomości | `Rss` | `https://naukawpolsce.pl/rss.xml` |
+| ScienceDaily – najnowsze badania | wiadomości | `Rss` | `https://www.sciencedaily.com/rss/all.xml` |
+| ScienceAlert – odkrycia naukowe | wiadomości | `Rss` | `https://www.sciencealert.com/feed` |
+| New Scientist – wiadomości naukowe | wiadomości | `Rss` | `https://www.newscientist.com/feed/` |
 
 Seeder dodaje tylko brakujące źródła (porównanie nazw bez uwzględniania wielkości liter),
 więc powtórne uruchomienia nie duplikują wpisów i nie nadpisują zmian użytkownika (np. wyłączonego
@@ -211,11 +215,51 @@ Weryfikacja:
 
 - `dotnet build RadarInnowacji.sln -v minimal` – **0 błędów**, tylko 3 wcześniejsze ostrzeżenia
   `xUnit1031` w `RepositoryDetailsTests`,
-- `dotnet test RadarInnowacji.sln` – **158 testów zaliczonych** (142 jednostkowe + 16 integracyjnych),
+- `dotnet test RadarInnowacji.sln` – **159 testów zaliczonych** (143 jednostkowe + 16 integracyjnych),
   w tym testy seedera (czysta baza, idempotencja, brak nadpisywania zmian), adapteru HTML
-  oraz test hosta sprawdzający obecność czterech stałych źródeł na `/zrodla`,
+  oraz test hosta sprawdzający obecność dziewięciu stałych źródeł na `/zrodla`,
 - logi startu ze świeżego katalogu zawierają `Migracje bazy danych zostały zastosowane.`
-  oraz `Stałe źródła są gotowe (nowych: 4).`
+  oraz `Stałe źródła są gotowe (nowych: 9).`
+
+## Radar wiadomości (Etap 4)
+
+- pięć rzeczywistych kanałów wiadomości naukowo-technologicznych (tabela wyżej) jest dodawanych
+  przy starcie na czystą bazę jako aktywne źródła radaru `Wiadomosci`, typu `Rss` (metoda `Rss`),
+  z interwałem 360 min; nie wymagają kluczy API ani ręcznej konfiguracji,
+- adapter RSS/Atom pobiera tytuł, opis/treść, odnośnik i datę publikacji z `pubDate`/`dc:date`;
+  obsługuje też skróty strefy czasowej, których .NET nie rozpoznaje (np. `EST`),
+- adapter HTML odczytuje datę publikacji z elementu `<time datetime>` oraz typowych klas
+  (`date`, `data`, `published`, `pub-date`) w odnośniku lub jego najbliższym otoczeniu;
+  gdy strona nie udostępnia daty, pole pozostaje `NULL` (bez domysłów),
+- formaty `dd.MM.yyyy`, `d.M.yyyy` i `dd/MM/yyyy` są rozpoznawane w datach z polskich stron,
+- wyniki są zapisywane jako odkrycia z `PublishedAt`, wyświetlane na `/radar-wiadomosci`
+  i wspólnym widoku odkryć; każdy skan ma wpis w historii (`/historia`) i aktualizuje
+  `LastScanDate`/`LastSuccessfulScan` oraz `LastError`,
+- seeder pozostaje idempotentny: nie duplikuje i nie nadpisuje zmian użytkownika; Etap 4
+  nie wymagał nowej migracji (`RadarKind` jest zapisywany jako liczba całkowita).
+
+Jednorazowa weryfikacja na żywo (poza zestawem testów, 22.11.2026):
+
+- pobranie kanałów przez adapter: Spider's Web 50/50 pozycji z datą, Nauka w Polsce 10/10,
+  ScienceDaily 60/60, ScienceAlert 10/10, New Scientist 10/10; AGH (HTML) 26 odnośników,
+  z czego 5 z datą publikacji,
+- pełny skan źródła ScienceAlert dodanego przez seeder przez `ScanService`: status `Succeeded`,
+  znaleziono i zapisano 10 odkryć, wszystkie z datą publikacji,
+- test runtime na `127.0.0.1:15195` ze świeżym katalogiem danych: `/`, `/radar-wiadomosci`,
+  `/radar-uczelni`, `/radar-repozytoriow`, `/radar-crowdfunding`, `/odkrycia`, `/historia`
+  i `/zrodla` zwróciły HTTP 200; `/zrodla` pokazało wszystkie dziewięć stałych źródeł;
+  w logu `Stałe źródła są gotowe (nowych: 9).`, brak wpisów `fail:`/`crit:`, zamknięcie
+  SIGTERM odnotowane jako `Application is shutting down...`.
+
+Znane ograniczenia Etapu 4:
+
+- kanał Nauka w Polsce zawiera również starszą pozycję (2018) obok aktualnych wiadomości;
+  data jest zachowywana tak, jak podał ją wydawca – nie jest „odświeżana",
+- część kanałów (ScienceDaily, ScienceAlert, New Scientist) publikuje treści po angielsku;
+  interfejs aplikacji pozostaje w języku polskim,
+- data z HTML jest ustawiana tylko wtedy, gdy strona udostępnia rozpoznawalny element daty,
+- źródła nie omijają zabezpieczeń serwisów; ograniczenie Kickstartera (HTTP 403) pozostaje
+  bez zmian (opisane powyżej).
 
 ## Co działa w Etapie 0 (zaakceptowanym)
 
@@ -291,6 +335,6 @@ Weryfikacja:
 
 ## Dalsze etapy
 
-Zgodnie z `src/MainJob.txt`: Etap 3 – Radar repozytoriów, Etap 4 – Radar wiadomości,
-Etap 5 – analiza AI (Ollama) i ocena potencjału innowacji.
+Zgodnie z `src/MainJob.txt`: Etapy 3 (repozytoria) i 4 (wiadomości) są zaimplementowane;
+kolejny jest Etap 5 – analiza AI (Ollama) i ocena potencjału innowacji.
 Każdy etap jest wykonywany wyłącznie po akceptacji poprzedniego.
