@@ -18,6 +18,7 @@ public sealed class RadarOptions
     public ScanningOptions Scanning { get; set; } = new();
     public RepositoryOptions Repositories { get; set; } = new();
     public KickstarterOptions Kickstarter { get; set; } = new();
+    public AiOptions Ai { get; set; } = new();
 
     public string EffectiveDatabasePath => string.IsNullOrWhiteSpace(DatabasePath)
         ? RadarDataPaths.DatabasePath
@@ -69,6 +70,31 @@ public sealed class RadarOptions
         if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_SCAN_MAX_ITEMS"), out var maxItems))
         {
             options.Scanning.MaxItemsPerSource = maxItems;
+        }
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("RADAR_AI_ENABLED"), out var aiEnabled))
+        {
+            options.Ai.Enabled = aiEnabled;
+        }
+
+        if (Environment.GetEnvironmentVariable("RADAR_AI_MODEL") is { Length: > 0 } aiModel)
+        {
+            options.Ai.Model = aiModel;
+        }
+
+        if (Environment.GetEnvironmentVariable("RADAR_AI_URL") is { Length: > 0 } aiUrl)
+        {
+            options.Ai.BaseUrl = aiUrl;
+        }
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_AI_TIMEOUT"), out var aiTimeout))
+        {
+            options.Ai.TimeoutSeconds = aiTimeout;
+        }
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_AI_BATCH"), out var aiBatch))
+        {
+            options.Ai.BatchSize = aiBatch;
         }
     }
 }

@@ -1,6 +1,7 @@
 @page "/ustawienia"
 @rendermode InteractiveServer
 @inject IOptions<RadarOptions> Options
+@inject IAiAnalysisService AiService
 
 <PageTitle>Ustawienia — Radar Innowacji</PageTitle>
 
@@ -29,5 +30,50 @@
     </div>
 </div>
 
+<div class="card dashboard-card mt-3">
+    <div class="card-header dashboard-card-header">Analiza AI (Ollama)</div>
+    <div class="card-body">
+        <dl class="row mb-3 small">
+            <dt class="col-sm-4">Status</dt><dd class="col-sm-8">@(Options.Value.Ai.Enabled ? "Włączona" : "Wyłączona")</dd>
+            <dt class="col-sm-4">Model</dt><dd class="col-sm-8"><code>@Options.Value.Ai.Model</code></dd>
+            <dt class="col-sm-4">Adres Ollamy</dt><dd class="col-sm-8"><code>@Options.Value.Ai.BaseUrl</code></dd>
+            <dt class="col-sm-4">Interwał kolejki</dt><dd class="col-sm-8">@Options.Value.Ai.IntervalMinutes min (partia: @Options.Value.Ai.BatchSize)</dd>
+        </dl>
+        <button type="button" class="btn btn-sm btn-outline-primary" disabled="@testowanie"
+                @onclick="TestPolaczeniaAsync">@(testowanie ? "Sprawdzanie…" : "Test połączenia")</button>
+        @if (!string.IsNullOrEmpty(komunikat))
+        {
+            <div class="alert @(komunikatBlad ? "alert-warning" : "alert-success") py-2 small mt-3 mb-0">@komunikat</div>
+        }
+        <p class="small text-muted mb-0 mt-3">
+            AI jest opcjonalne. Bez Ollamy aplikacja nadal pobiera materiały i oznacza je jako oczekujące na analizę.
+        </p>
+    </div>
+</div>
+
 @code {
+    private string komunikat = string.Empty;
+    private bool komunikatBlad;
+    private bool testowanie;
+
+    private async Task TestPolaczeniaAsync()
+    {
+        testowanie = true;
+        komunikat = string.Empty;
+        try
+        {
+            var wynik = await AiService.TestConnectionAsync();
+            komunikat = wynik.Message;
+            komunikatBlad = !wynik.IsAvailable;
+        }
+        catch (Exception exception)
+        {
+            komunikat = $"Nie można sprawdzić połączenia: {exception.Message}";
+            komunikatBlad = true;
+        }
+        finally
+        {
+            testowanie = false;
+        }
+    }
 }

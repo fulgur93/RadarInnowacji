@@ -28,6 +28,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IScanHistoryService, ScanHistoryService>();
         services.AddScoped<IScanService, ScanService>();
+        services.AddScoped<IAiAnalysisService, OllamaAiAnalysisService>();
+        services.AddScoped<IAiAnalysisQueueService, AiAnalysisQueueService>();
 
         services.AddHttpClient("RadarSources", client =>
         {
@@ -38,6 +40,13 @@ public static class InfrastructureServiceCollectionExtensions
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/rss+xml"));
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/atom+xml"));
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+        });
+
+        services.AddHttpClient("RadarAi", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(300);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("RadarInnowacji/1.0 (prototyp)");
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         });
 
         services.AddTransient<ISourceAdapter>(provider => new GitHubSourceAdapter(

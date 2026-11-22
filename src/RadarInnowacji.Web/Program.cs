@@ -35,6 +35,7 @@ builder.Services.AddRadarInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<DatabaseMigrationJob>();
 builder.Services.AddHostedService<PermanentSourcesSeedJob>();
 builder.Services.AddHostedService<BackgroundScanJob>();
+builder.Services.AddHostedService<AiAnalysisJob>();
 
 var app = builder.Build();
 

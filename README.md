@@ -3,7 +3,7 @@
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
 repozytoriach kodu źródłowego, wiadomościach internetowych oraz na portalach crowdfundingowych.
 
-**Status projektu: ETAP 4 – RADAR WIADOMOŚCI (zaimplementowany, oczekuje na akceptację).**
+**Status projektu: ETAP 5 – SILNIK AI (zaimplementowany, oczekuje na akceptację).**
 Etapy 0–3 zostały wcześniej zaakceptowane przez zamawiającego. W Etapie 3, na wyraźne
 życzenie zamawiającego, dodano też osobny, czwarty radar portali crowdfundingowych
 (zmiana wobec pierwotnie trójradarowego interfejsu z `src/MainJob.txt`).
@@ -13,7 +13,7 @@ Etapy 0–3 zostały wcześniej zaakceptowane przez zamawiającego. W Etapie 3, 
 - ASP.NET Core 10 / C# / Blazor Web App (Interactive Server)
 - Entity Framework Core 10 + SQLite (możliwość przejścia na PostgreSQL)
 - BackgroundService (zadania cykliczne, od Etapu 0 jako biblioteka `Jobs` uruchamiana w procesie Web)
-- HttpClientFactory, AngleSharp, RSS/Atom, OAI-PMH (adaptery źródeł), Ollama (opcjonalnie, od kolejnego etapu)
+- HttpClientFactory, AngleSharp, RSS/Atom, OAI-PMH (adaptery źródeł), Ollama (opcjonalny lokalny silnik AI)
 - Bootstrap 5 (lokalnie w `wwwroot/lib/bootstrap`, bez zależności od CDN)
 - Wykresy Razor/SVG bez własnego JavaScript-u
 
@@ -46,7 +46,8 @@ co upraszcza zamykanie aplikacji i obsługę portu.
 - `dotnet` musi być w `PATH`: `export PATH=/home/fulgur/.dotnet:$PATH`
 - Przeglądarka internetowa (otwierana automatycznie po starcie)
 
-Nie są wymagane: Visual Studio, Rider, PostgreSQL, Ollama, zewnętrzne chmury.
+Nie są wymagane: Visual Studio, Rider, PostgreSQL, zewnętrzne chmury. Ollama jest opcjonalna – bez niej
+aplikacja działa w trybie bez AI, a materiały czekają w kolejce na późniejszą analizę.
 
 ## Uruchomienie
 
@@ -86,11 +87,21 @@ nie musi wywoływać `dotnet ef database update`.
 | `Repositories:FilterNoise` | `true` | Pomijanie forków, kopii, szablonów, list „awesome", dotfiles, zadań z kursów i projektów do usunięcia |
 | `Kickstarter:MaxItemsPerScan` | `120` | Maksymalna liczba kampanii zapisanych z jednego skanu źródła Kickstarter |
 | `Kickstarter:MaxPagesPerQuery` | `8` | Maksymalna liczba stron (po 12 wyników) jednego wyszukiwania Kickstartera |
+| `Ai:Enabled` | `true` | Włączenie analizy AI; `false` = tryb bez AI |
+| `Ai:BaseUrl` | `http://127.0.0.1:11434` | Adres lokalnego serwera Ollama |
+| `Ai:Model` | `qwen3:1.7b` | Model używany do analizy (domyślny według specyfikacji) |
+| `Ai:TimeoutSeconds` | `90` | Limit czasu jednego zapytania do modelu |
+| `Ai:IntervalMinutes` | `30` | Częstotliwość przetwarzania kolejki AI |
+| `Ai:StartDelaySeconds` | `20` | Opóźnienie pierwszego cyklu analizy po starcie |
+| `Ai:BatchSize` | `5` | Liczba odkryć analizowanych w jednym cyklu |
+| `Ai:MaxContentCharacters` | `4000` | Maksymalna liczba znaków treści wysyłanej do modelu |
 
 Zmienne środowiskowe nadpisują ustawienia uruchomieniowe:
 `RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`,
 `RADAR_SCANNING_ENABLED`, `RADAR_SCAN_INTERVAL_MINUTES`,
-`RADAR_SCAN_START_DELAY_SECONDS`, `RADAR_SCAN_MAX_ITEMS`.
+`RADAR_SCAN_START_DELAY_SECONDS`, `RADAR_SCAN_MAX_ITEMS`,
+`RADAR_AI_ENABLED`, `RADAR_AI_MODEL`, `RADAR_AI_URL`,
+`RADAR_AI_TIMEOUT`, `RADAR_AI_BATCH`.
 Ścieżki danych można nadpisać przez `RADAR_DATA_DIR`, `RADAR_DB_PATH`, `RADAR_LOG_DIR`.
 
 Dane użytkownika (SQLite i logi) są zapisywane poza katalogiem aplikacji:
@@ -215,7 +226,7 @@ Weryfikacja:
 
 - `dotnet build RadarInnowacji.sln -v minimal` – **0 błędów**, tylko 3 wcześniejsze ostrzeżenia
   `xUnit1031` w `RepositoryDetailsTests`,
-- `dotnet test RadarInnowacji.sln` – **159 testów zaliczonych** (143 jednostkowe + 16 integracyjnych),
+- `dotnet test RadarInnowacji.sln` – **166 testów zaliczonych** (150 jednostkowych + 16 integracyjnych),
   w tym testy seedera (czysta baza, idempotencja, brak nadpisywania zmian), adapteru HTML
   oraz test hosta sprawdzający obecność dziewięciu stałych źródeł na `/zrodla`,
 - logi startu ze świeżego katalogu zawierają `Migracje bazy danych zostały zastosowane.`
@@ -260,6 +271,52 @@ Znane ograniczenia Etapu 4:
 - data z HTML jest ustawiana tylko wtedy, gdy strona udostępnia rozpoznawalny element daty,
 - źródła nie omijają zabezpieczeń serwisów; ograniczenie Kickstartera (HTTP 403) pozostaje
   bez zmian (opisane powyżej).
+
+## Silnik AI (Etap 5)
+
+- integracja z lokalnym Ollamą przez HTTP (`/api/chat` z `format=json` oraz `/api/tags`
+  do testu połączenia); bez chmury, kluczy API i wysyłania danych na zewnątrz,
+- model domyślny `qwen3:1.7b` (konfigurowalny; na maszynie weryfikacyjnej użyto
+  zainstalowanego `qwen2.5-coder:latest` przez `RADAR_AI_MODEL`),
+- analiza treści odkrycia (tytuł, opis, adres, data, fragment treści) zwraca ustrukturyzowany
+  JSON: `isPotentialInnovation`, `confidence`, `innovationType`, `problem`, `solution`,
+  `noveltyDescription`, `technologies`, `reason`, `suggestedCategories`, `missingInformation`,
+- prompt wyraźnie zakazuje przedstawiania przypuszczeń jako faktów – brakujące dane są
+  oznaczane jako „Brak danych”, a wynik AI jest zawsze oznaczony jako wymagający weryfikacji człowieka,
+- odkrycie otrzymuje status `Interesting`, gdy AI wskaże potencjalną innowację, albo `Candidate`
+  w przeciwnym razie; status `Verified` nigdy nie jest obniżany,
+- kolejka analiz (`Pending`/`AiQueued` → `AiProcessed`/`AiFailed`) działa w tle
+  jako `AiAnalysisJob`; każda próba zapisuje `AiAnalysisRecord` (model, pełny JSON, pewność,
+  uzasadnienie, wersja promptu, błąd), więc historia analiz jest dostępna na stronie odkrycia,
+- błędy modelu (HTTP, nieprawidłowy JSON, przekroczenie czasu) są logowane i zapisywane
+  jako `AiFailed` – pozwalają na ręczną ponowną analizę przyciskiem „Uruchom analizę AI”,
+- strona Ustawienia pokazuje konfigurację AI i przycisk „Test połączenia”,
+- tryb bez AI: `RADAR_AI_ENABLED=false` (albo brak działającego Ollamy) wyłącza job;
+  skanowanie i wszystkie pozostałe funkcje działają normalnie, a odkrycia pozostają w kolejce,
+- dane demonstracyjne (`IsDemo`) nie są analizowane; ETAP 5 nie wymagał nowej migracji.
+
+Jednorazowa weryfikacja na żywo (poza zestawem testów, 22.11.2026):
+
+- rzeczywiste źródła: AGH (HTML, uczelnia), ScienceDaily (RSS, wiadomości) i GitHub API
+  (zapytanie `prototype`, repozytorium) – każde pobrało po 1 rzeczywistym materiale,
+- test połączenia z Ollamą: model `qwen2.5-coder:latest` dostępny,
+- kolejka AI przeanalizowała wszystkie trzy materiały bez błędów; w bazie zapisano trzy wpisy
+  `AiAnalysisRecord` z pełnym JSON, a każde odkrycie ma `AIProcessed=true`,
+- przykładowe wyniki: „czysta energia” (uczelnie) – 0% i wyraźny brak danych,
+  „AI may not work like the human brain after all…” (wiadomości) – 85% i wykrycie
+  nowej metody, „jkoehler11/stargate-alliance-decomp” (repozytoria) – 20% i brak
+  potwierdzonych informacji o innowacji,
+- model na CPU potrzebował 30–75 s na jedno zapytanie, więc weryfikacja użyła
+  `TimeoutSeconds=180`; domyślny limit 90 s można w razie potrzeby zwiększyć.
+
+Znane ograniczenia Etapu 5:
+
+- jakość oceny zależy od modelu: część pól może pozostać „Brak danych”, a model może
+  zwrócić pojedyncze określenia po angielsku mimo instrukcji po polsku – interfejs pozostaje polski,
+- niskie pewności (np. 0–20%) są zapisywane, ale nadal wymagają weryfikacji człowieka,
+- bez zainstalowanego modelu `qwen3:1.7b` job wstrzymuje analizę z ostrzeżeniem w logu
+  i ponawia test połączenia w kolejnym cyklu; należy zainstalować model albo ustawić
+  `RADAR_AI_MODEL` na już dostępny.
 
 ## Co działa w Etapie 0 (zaakceptowanym)
 
@@ -319,10 +376,10 @@ Znane ograniczenia Etapu 4:
 - testy jednostkowe parserów wszystkich adapterów, testy `ScanService`, `SourceService.CreateAsync`
   oraz test integracyjny formularza i przycisku skanowania.
 
-## Znane ograniczenia Etapu 2
+## Znane ograniczenia Etapu 2 (historyczne)
 
-- Nie ma jeszcze analizy AI/Ollama, wektorów, oceny potencjału innowacji, trendów
-  ani deduplikacji między źródłami.
+- W momencie Etapu 2 nie było jeszcze analizy AI/Ollamy, wektorów, oceny potencjału
+  innowacji, trendów ani deduplikacji między źródłami; analizę AI dodano w Etapie 5.
 - Idempotencja obowiązuje wyłącznie w ramach jednego źródła; ten sam materiał
   z dwóch różnych źródeł może zostać zapisany dwukrotnie.
 - Adapter HTML jest heurystyką opartą na odnośnikach w obszarach `article`, `main`,
@@ -335,6 +392,7 @@ Znane ograniczenia Etapu 4:
 
 ## Dalsze etapy
 
-Zgodnie z `src/MainJob.txt`: Etapy 3 (repozytoria) i 4 (wiadomości) są zaimplementowane;
-kolejny jest Etap 5 – analiza AI (Ollama) i ocena potencjału innowacji.
+Zgodnie z `src/MainJob.txt`: Etapy 3 (repozytoria), 4 (wiadomości) i 5 (silnik AI)
+są zaimplementowane; kolejny jest Etap 6 – dynamiczne kategorie i świeżość
+(embeddings, grupowanie projektów, `FreshnessScore`).
 Każdy etap jest wykonywany wyłącznie po akceptacji poprzedniego.

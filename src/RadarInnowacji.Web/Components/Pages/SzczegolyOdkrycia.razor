@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using RadarInnowacji.Infrastructure.Services
 @inject IDiscoveryService DiscoveryService
+@inject IAiAnalysisQueueService AiQueue
 
 <PageTitle>Szczegóły odkrycia — Radar Innowacji</PageTitle>
 
@@ -28,12 +29,14 @@ else
             <a class="btn btn-sm btn-outline-primary" href="@discovery.SourceUrl" target="_blank" rel="noopener noreferrer">Otwórz źródło</a>
             <button type="button" class="btn btn-sm btn-outline-success" disabled="@(discovery.Status == DiscoveryStatus.Verified)"
                     @onclick="ZatwierdzAsync">Oznacz jako zweryfikowane</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@analizuje"
+                    @onclick="AnalizujAsync">@(analizuje ? "Analizowanie…" : discovery.AIProcessed ? "Przeanalizuj ponownie" : "Uruchom analizę AI")</button>
         </div>
     </div>
 
     @if (!string.IsNullOrEmpty(komunikat))
     {
-        <div class="alert alert-success py-2 small">@komunikat</div>
+        <div class="alert @(komunikatBlad ? "alert-warning" : "alert-success") py-2 small">@komunikat</div>
     }
 
     <div class="row g-3">
@@ -231,6 +234,8 @@ else
 
     private DiscoveryDetailsModel? model;
     private string komunikat = string.Empty;
+    private bool komunikatBlad;
+    private bool analizuje;
 
     protected override async Task OnInitializedAsync()
     {
@@ -241,7 +246,32 @@ else
     {
         await DiscoveryService.MarkVerifiedAsync(Id);
         komunikat = "Odkrycie zostało oznaczone jako zweryfikowane.";
+        komunikatBlad = false;
         model = await DiscoveryService.GetDetailsAsync(Id);
+    }
+
+    private async Task AnalizujAsync()
+    {
+        analizuje = true;
+        komunikat = string.Empty;
+        try
+        {
+            var wynik = await AiQueue.AnalyzeDiscoveryAsync(Id);
+            komunikat = wynik.Failed > 0
+                ? $"Analiza AI nie powiodła się: {wynik.LastError}"
+                : "Analiza AI została zakończona.";
+            komunikatBlad = wynik.Failed > 0;
+        }
+        catch (Exception exception)
+        {
+            komunikat = $"Błąd analizy AI: {exception.Message}";
+            komunikatBlad = true;
+        }
+        finally
+        {
+            analizuje = false;
+            model = await DiscoveryService.GetDetailsAsync(Id);
+        }
     }
 
     private static string BadgeStatus(DiscoveryStatus value) => value switch
