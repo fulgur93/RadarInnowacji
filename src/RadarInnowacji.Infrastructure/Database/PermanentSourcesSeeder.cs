@@ -56,7 +56,8 @@ public sealed class PermanentSourcesSeeder(RadarDbContext db) : IPermanentSource
         new("GitHub – innowacje (PL)", "https://api.github.com", RadarKind.Repozytorium, SourceType.GitHubApi, 360,
             """{"query":{"keywords":["prototype","proof of concept","novel method","prototyp","nowa metoda","autonomiczny system"],"topics":[],"languages":[],"createdWithinDays":30}}"""),
         new("GitLab – innowacje (PL)", "https://gitlab.com", RadarKind.Repozytorium, SourceType.GitLabApi, 360,
-            """{"query":{"keywords":["prototype","proof of concept","novel method","prototyp","nowa metoda","autonomiczny system"],"topics":[],"languages":[],"createdWithinDays":30}}""")
+            """{"query":{"keywords":["prototype","proof of concept","novel method","prototyp","nowa metoda","autonomiczny system"],"topics":[],"languages":[],"createdWithinDays":30}}"""),
+        new("Hugging Face – modele/projekty (PL)", "https://huggingface.co/api/models?sort=lastModified&direction=-1&limit=50&search=polish", RadarKind.Repozytorium, SourceType.HuggingFaceApi, 720)
     ];
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)
