@@ -5,13 +5,16 @@ Wymagany: git, docker
 
 sh (cmd):
 git clone https://github.com/fulgur93/RadarInnowacji.git
+
 cd RadarInnowacji
+
 docker compose up -d --build
 
 Po uruchomieniu usługi aplikacja będzie dostępna na:
 http://127.0.0.1:5080/
 
 Po zakończeniu testów sh
+
 docker compose down
 
 
