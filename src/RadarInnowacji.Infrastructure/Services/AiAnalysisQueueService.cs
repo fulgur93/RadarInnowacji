@@ -98,12 +98,32 @@ public sealed class AiAnalysisQueueService(
             return AiQueueResult.Failure("Dane demonstracyjne nie są analizowane.");
         }
 
+        if (ShouldRemoveAsObviousJunk(discovery))
+        {
+            logger.LogInformation("Usuwam oczywisty szum przed analizą AI: {Id} {Title}", discovery.Id, discovery.Title);
+            await RemoveDiscoveryAsync(discovery, cancellationToken);
+            return AiQueueResult.Success();
+        }
+
         discovery.ProcessingStatus = ProcessingStatus.AiQueued;
         await db.SaveChangesAsync(cancellationToken);
 
         try
         {
             var result = await analyzer.AnalyzeAsync(discovery, cancellationToken);
+
+            if (ShouldRemoveAfterAi(discovery, result))
+            {
+                logger.LogInformation(
+                    "Usuwam nietrafne odkrycie po analizie AI: {Id} {Title} (confidence={Confidence}, potential={Potential})",
+                    discovery.Id,
+                    discovery.Title,
+                    result.Confidence,
+                    result.IsPotentialInnovation);
+                await RemoveDiscoveryAsync(discovery, cancellationToken);
+                return AiQueueResult.Success();
+            }
+
             discovery.AIProcessed = true;
             discovery.AIConfidence = result.Confidence;
             discovery.AIAnalysis = Trim(result.ToDisplayText(), ContentLimits.MaxDescriptionLength);
@@ -151,6 +171,119 @@ public sealed class AiAnalysisQueueService(
             await db.SaveChangesAsync(cancellationToken);
             return AiQueueResult.Failure(exception.Message);
         }
+    }
+
+    private async Task RemoveDiscoveryAsync(Discovery discovery, CancellationToken cancellationToken)
+    {
+        // Zabezpieczenie: nie usuwamy zweryfikowanych ani ręcznych materiałów.
+        if (discovery.Status == DiscoveryStatus.Verified || discovery.IsDemo)
+        {
+            discovery.ProcessingStatus = ProcessingStatus.Skipped;
+            discovery.AIProcessed = true;
+            discovery.IsPotentialInnovation = false;
+            await db.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var links = await db.DiscoveryProjects
+            .Where(x => x.DiscoveryId == discovery.Id)
+            .ToListAsync(cancellationToken);
+        if (links.Count > 0)
+        {
+            db.DiscoveryProjects.RemoveRange(links);
+        }
+
+        db.Discoveries.Remove(discovery);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static bool ShouldRemoveAfterAi(Discovery discovery, AiAnalysisResult result)
+    {
+        if (discovery.Status == DiscoveryStatus.Verified)
+        {
+            return false;
+        }
+
+        if (result.IsPotentialInnovation)
+        {
+            return false;
+        }
+
+        // Szybkie odsiewanie: model pewnie uznał materiał za nietrafny.
+        if (result.Confidence >= 60)
+        {
+            return true;
+        }
+
+        return HasObviousJunkSignals(discovery);
+    }
+
+    private static bool ShouldRemoveAsObviousJunk(Discovery discovery)
+    {
+        if (discovery.Status == DiscoveryStatus.Verified || discovery.IsDemo)
+        {
+            return false;
+        }
+
+        return HasObviousJunkSignals(discovery);
+    }
+
+    private static bool HasObviousJunkSignals(Discovery discovery)
+    {
+        var title = (discovery.Title ?? string.Empty).Trim();
+        var description = (discovery.Description ?? string.Empty).Trim();
+        var content = (discovery.RawContent ?? string.Empty).Trim();
+        var text = $"{title}\n{description}\n{content}";
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return true;
+        }
+
+        var normalizedTitle = title.ToLowerInvariant();
+        string[] titleJunk =
+        [
+            "instrukcja włączenia obsługi javascript",
+            "włącz obsługę javascript",
+            "enable javascript",
+            "czytaj więcej",
+            "read more",
+            "strona nie została znaleziona",
+            "404 not found",
+            "403 forbidden",
+            "access denied",
+            "dostęp zabroniony",
+            "przekierowanie",
+            "redirecting"
+        ];
+
+        if (titleJunk.Any(x => normalizedTitle == x || normalizedTitle.Contains(x, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        // Bardzo krótkie "Czytaj więcej" / placeholdery bez treści.
+        var compact = text.Length < 200 ? text.ToLowerInvariant() : string.Empty;
+        if (compact.Length > 0)
+        {
+            string[] snippetJunk =
+            [
+                "javascript jest wyłączony",
+                "włącz javascript",
+                "enable javascript",
+                "czytaj więcej",
+                "read more",
+                "kliknij tutaj",
+                "accept cookies",
+                "zaakceptuj pliki cookie"
+            ];
+            if (snippetJunk.Any(x => compact.Contains(x, StringComparison.Ordinal)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string Trim(string value, int maxLength) =>

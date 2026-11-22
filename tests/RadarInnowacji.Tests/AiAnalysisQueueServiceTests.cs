@@ -36,7 +36,7 @@ public class AiAnalysisQueueServiceTests
         Assert.Equal(DiscoveryStatus.Interesting, after.Status);
         var record = Assert.Single(after.AiAnalyses);
         Assert.True(record.IsSuccess);
-        Assert.Equal("qwen3:1.7b", record.Model);
+        Assert.Equal("SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0", record.Model);
         Assert.Contains("isPotentialInnovation", record.ResultJson);
     }
 
@@ -81,6 +81,60 @@ public class AiAnalysisQueueServiceTests
         Assert.Equal(0, result.Failed);
     }
 
+    [Fact]
+    public async Task KolejkaAI_UsuwaOczywistySzumPrzedAnaliza()
+    {
+        using var database = new SqliteTestDatabase();
+        var source = SourceTestFactory.Create(SourceType.Rss, "https://example.org/feed");
+        database.Context.Sources.Add(source);
+        await database.Context.SaveChangesAsync();
+        database.Context.Discoveries.Add(new Discovery
+        {
+            SourceId = source.Id,
+            Title = "Instrukcja włączenia obsługi JavaScript w przeglądarkach",
+            Description = "Czytaj więcej",
+            RawContent = "Aby korzystać z serwisu, włącz JavaScript.",
+            SourceUrl = "https://example.org/js",
+            ExternalId = "junk-1",
+            ProcessingStatus = ProcessingStatus.Pending,
+            Status = DiscoveryStatus.Candidate
+        });
+        await database.Context.SaveChangesAsync();
+
+        var result = await CreateQueue(database, SuccessfulResult()).ProcessPendingAsync(10);
+
+        Assert.Equal(1, result.Processed);
+        Assert.Empty(await database.Context.Discoveries.ToListAsync());
+    }
+
+    [Fact]
+    public async Task KolejkaAI_UsuwaNietrafneOdkryciePoAnalizie()
+    {
+        using var database = new SqliteTestDatabase();
+        var source = SourceTestFactory.Create(SourceType.Rss, "https://example.org/feed");
+        database.Context.Sources.Add(source);
+        await database.Context.SaveChangesAsync();
+        database.Context.Discoveries.Add(new Discovery
+        {
+            SourceId = source.Id,
+            Title = "Aktualności firmy",
+            Description = "Krótka notatka prasowa bez rozwiązania.",
+            RawContent = "Brak szczegółów technicznych.",
+            SourceUrl = "https://example.org/news",
+            ExternalId = "news-1",
+            ProcessingStatus = ProcessingStatus.Pending,
+            Status = DiscoveryStatus.Candidate
+        });
+        await database.Context.SaveChangesAsync();
+
+        var notInnovation = new AiAnalysisResult(false, 90, "Brak", "Brak danych", "Brak danych",
+            "Brak danych", [], "To nie jest innowacja.", [], "Brak danych");
+        var result = await CreateQueue(database, notInnovation).ProcessPendingAsync(10);
+
+        Assert.Equal(1, result.Processed);
+        Assert.Empty(await database.Context.Discoveries.ToListAsync());
+    }
+
     private static async Task ScanOneItemAsync(SqliteTestDatabase database, int sourceId)
     {
         var adapter = new FakeSourceAdapter();
@@ -103,7 +157,7 @@ public class AiAnalysisQueueServiceTests
         return new AiAnalysisQueueService(
             database.Context,
             analyzer,
-            Options.Create(new RadarOptions { Ai = new AiOptions { Model = "qwen3:1.7b" } }),
+            Options.Create(new RadarOptions { Ai = new AiOptions { Model = "SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0" } }),
             NullLogger<AiAnalysisQueueService>.Instance);
     }
 
@@ -125,7 +179,7 @@ public class AiAnalysisQueueServiceTests
             Task.FromResult(result);
 
         public Task<AiConnectionTest> TestConnectionAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new AiConnectionTest(true, "qwen3:1.7b", "OK", ["qwen3:1.7b"]));
+            Task.FromResult(new AiConnectionTest(true, "SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0", "OK", ["SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0"]));
     }
 
     private sealed class FailingAnalyzer : IAiAnalysisService
@@ -134,7 +188,7 @@ public class AiAnalysisQueueServiceTests
             throw new InvalidOperationException("Awaria modelu testowego.");
 
         public Task<AiConnectionTest> TestConnectionAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new AiConnectionTest(true, "qwen3:1.7b", "OK", ["qwen3:1.7b"]));
+            Task.FromResult(new AiConnectionTest(true, "SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0", "OK", ["SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0"]));
     }
 
     private sealed class FakeSourceAdapter : ISourceAdapter

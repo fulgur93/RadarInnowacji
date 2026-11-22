@@ -21,39 +21,22 @@ public class PermanentSourcesSeederTests
         Assert.Equal(PermanentSourcesSeeder.Definitions.Count, await db.Sources.CountAsync());
         Assert.True(await db.Sources.AllAsync(x => !x.IsDemo && x.IsActive));
         var allSources = await db.Sources.ToListAsync();
-        Assert.True(allSources.All(x =>
-            x.FetchMethod == SourceDefaults.FetchMethodFor(x.SourceType)));
+        Assert.True(allSources.All(x => x.FetchMethod == SourceDefaults.FetchMethodFor(x.SourceType)));
+        Assert.True(allSources.All(x => !string.IsNullOrWhiteSpace(x.Url) && x.Url.StartsWith("https://")));
 
-        var kickstarter = await db.Sources.SingleAsync(
-            x => x.SourceType == SourceType.KickstarterApi);
-        Assert.Equal(RadarKind.Crowdfunding, kickstarter.Radar);
-        Assert.Equal("https://www.kickstarter.com", kickstarter.Url);
-        var query = SourceConfiguration.ReadKickstarterQuery(kickstarter.Configuration);
-        Assert.NotNull(query);
-        Assert.NotEmpty(query.Keywords);
-        Assert.All(KickstarterQuery.DefaultKeywords, keyword => Assert.Contains(keyword, query.Keywords));
-        Assert.Contains(16, query.CategoryIds);
-        Assert.Equal(KickstarterQuery.DefaultState, query.State);
+        // No English-only/default foreign news feeds in permanent seed
+        Assert.DoesNotContain(allSources, x => x.Url.Contains("sciencedaily.com", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(allSources, x => x.Url.Contains("sciencealert.com", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(allSources, x => x.Url.Contains("newscientist.com", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(allSources, x => x.SourceType == SourceType.KickstarterApi);
 
-        var uczelnie = await db.Sources
-            .Where(x => x.Radar == RadarKind.Uczelnia)
-            .ToListAsync();
-        Assert.Equal(3, uczelnie.Count);
-        Assert.True(uczelnie.All(x => x.SourceType == SourceType.HtmlPage && x.Url.StartsWith("https://")));
-        Assert.Contains(uczelnie, x => x.Url.Contains("agh.edu.pl"));
-        Assert.Contains(uczelnie, x => x.Url.Contains("pg.edu.pl"));
-        Assert.Contains(uczelnie, x => x.Url.Contains("amu.edu.pl"));
-
-        var wiadomosci = await db.Sources
-            .Where(x => x.Radar == RadarKind.Wiadomosci)
-            .ToListAsync();
-        Assert.Equal(5, wiadomosci.Count);
-        Assert.True(wiadomosci.All(x => x.SourceType == SourceType.Rss && x.Url.StartsWith("https://")));
-        Assert.Contains(wiadomosci, x => x.Url.Contains("spidersweb.pl"));
-        Assert.Contains(wiadomosci, x => x.Url.Contains("naukawpolsce.pl"));
-        Assert.Contains(wiadomosci, x => x.Url.Contains("sciencedaily.com"));
-        Assert.Contains(wiadomosci, x => x.Url.Contains("sciencealert.com"));
-        Assert.Contains(wiadomosci, x => x.Url.Contains("newscientist.com"));
+        // Key Polish institutions/sources are present
+        Assert.True(allSources.Any(x => x.Url.Contains("ncbr", StringComparison.OrdinalIgnoreCase)), string.Join("|", allSources.Select(x=>x.Url)));
+        Assert.Contains(allSources, x => x.Url.Contains("ncn.gov.pl", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(allSources, x => x.Url.Contains("parp.gov.pl", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(allSources, x => x.Url.Contains("naukawpolsce.pl", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(allSources, x => x.Url.Contains("polakpotrafi.pl", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(allSources, x => x.Radar == RadarKind.Uczelnia);
     }
 
     [Fact]

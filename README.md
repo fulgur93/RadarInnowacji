@@ -244,15 +244,26 @@ ręcznej konfiguracji:
 
 | Źródło | Radar | Typ | Adres |
 | --- | --- | --- | --- |
-| Kickstarter – wyszukiwanie projektów | portale crowdfundingowe | `KickstarterApi` | `https://www.kickstarter.com` |
+| Politechnika Warszawska – aktualności | uczelnie | `HtmlPage` | `https://www.pw.edu.pl/aktualnosci` |
 | AGH – projekty studenckie | uczelnie | `HtmlPage` | `https://www.agh.edu.pl/slowa-kluczowe/projekty-studenckie` |
 | Politechnika Gdańska – Uczelnie Przyszłości | uczelnie | `HtmlPage` | `https://pg.edu.pl/studenci/projekty/uczelnie-przyszlosci/aktualnosci` |
-| UAM WMiI – studenckie projekty badawczo-rozwojowe | uczelnie | `HtmlPage` | `https://wmi.amu.edu.pl/wydzial/projekty/studenckie-projekty-badawczo-rozwojowe` |
-| Spider's Web – technologie | wiadomości | `Rss` | `https://www.spidersweb.pl/feed` |
-| Nauka w Polsce – aktualności | wiadomości | `Rss` | `https://naukawpolsce.pl/rss.xml` |
-| ScienceDaily – najnowsze badania | wiadomości | `Rss` | `https://www.sciencedaily.com/rss/all.xml` |
-| ScienceAlert – odkrycia naukowe | wiadomości | `Rss` | `https://www.sciencealert.com/feed` |
-| New Scientist – wiadomości naukowe | wiadomości | `Rss` | `https://www.newscientist.com/feed/` |
+| Politechnika Wrocławska – aktualności | uczelnie | `HtmlPage` | `https://pwr.edu.pl/uczelnia/aktualnosci` |
+| Politechnika Krakowska – aktualności | uczelnie | `HtmlPage` | `https://www.pk.edu.pl/index.php?option=com_content&view=category&layout=blog&id=2&Itemid=101&lang=pl` |
+| Uniwersytet Jagielloński – nauka i innowacje | uczelnie | `HtmlPage` | `https://www.uj.edu.pl/wiadomosci` |
+| UAM WMiI – projekty badawczo-rozwojowe | uczelnie | `HtmlPage` | `https://wmi.amu.edu.pl/wydzial/projekty/studenckie-projekty-badawczo-rozwojowe` |
+| NCBR – aktualności | wiadomości | `HtmlPage` | `https://www.gov.pl/web/ncbr/aktualnosci` |
+| NCN – aktualności | wiadomości | `HtmlPage` | `https://www.ncn.gov.pl/aktualnosci` |
+| PARP – aktualności | wiadomości | `HtmlPage` | `https://www.parp.gov.pl/component/content/article/57887` |
+| Ministerstwo Nauki i Szkolnictwa Wyższego – aktualności | wiadomości | `HtmlPage` | `https://www.gov.pl/web/nauka/aktualnosci` |
+| NAWA – aktualności | wiadomości | `HtmlPage` | `https://nawa.gov.pl/nawa/aktualnosci` |
+| Urząd Patentowy RP – aktualności | wiadomości | `HtmlPage` | `https://uprp.gov.pl/pl/o-urzedzie/aktualnosci` |
+| PAIH – aktualności | wiadomości | `HtmlPage` | `https://www.paih.gov.pl/aktualnosci` |
+| Horyzont Europa – aktualności | wiadomości | `HtmlPage` | `https://www.gov.pl/web/horyzont-europa/aktualnosci` |
+| Nauka w Polsce (PAP) – RSS | wiadomości | `Rss` | `https://naukawpolsce.pl/rss.xml` |
+| Spider's Web – technologie (RSS) | wiadomości | `Rss` | `https://spidersweb.pl/api/post/feed/feed-gn` |
+| Nauka w Polsce – aktualności | wiadomości | `HtmlPage` | `https://naukawpolsce.pl/aktualnosci/news` |
+| PolakPotrafi.pl – projekty | wiadomości | `HtmlPage` | `https://polakpotrafi.pl/projekty` |
+| Wesprzyj.to – zbiórki | wiadomości | `HtmlPage` | `https://wesprzyj.to/wyszukaj` |
 
 Seeder dodaje tylko brakujące źródła (porównanie nazw bez uwzględniania wielkości liter),
 więc powtórne uruchomienia nie duplikują wpisów i nie nadpisują zmian użytkownika (np. wyłączonego
@@ -273,9 +284,9 @@ Weryfikacja:
   `xUnit1031` w `RepositoryDetailsTests`,
 - `dotnet test RadarInnowacji.sln` – **166 testów zaliczonych** (150 jednostkowych + 16 integracyjnych),
   w tym testy seedera (czysta baza, idempotencja, brak nadpisywania zmian), adapteru HTML
-  oraz test hosta sprawdzający obecność dziewięciu stałych źródeł na `/zrodla`,
+  oraz test hosta sprawdzający obecność stałych źródeł na `/zrodla`,
 - logi startu ze świeżego katalogu zawierają `Migracje bazy danych zostały zastosowane.`
-  oraz `Stałe źródła są gotowe (nowych: 9).`
+  oraz wpis `Stałe źródła są gotowe (nowych: N).`
 
 ## Radar wiadomości (Etap 4)
 
@@ -297,22 +308,21 @@ Weryfikacja:
 Jednorazowa weryfikacja na żywo (poza zestawem testów, 22.11.2026):
 
 - pobranie kanałów przez adapter: Spider's Web 50/50 pozycji z datą, Nauka w Polsce 10/10,
-  ScienceDaily 60/60, ScienceAlert 10/10, New Scientist 10/10; AGH (HTML) 26 odnośników,
+  (wyniki zależne od źródła i daty uruchomienia); AGH (HTML) 26 odnośników,
   z czego 5 z datą publikacji,
-- pełny skan źródła ScienceAlert dodanego przez seeder przez `ScanService`: status `Succeeded`,
-  znaleziono i zapisano 10 odkryć, wszystkie z datą publikacji,
+- pełny skan wybranego źródła dodanego przez seeder przez `ScanService`: status `Succeeded`,
+  odkrycia zapisywane z datą publikacji, gdy źródło ją udostępnia,
 - test runtime na `127.0.0.1:15195` ze świeżym katalogiem danych: `/`, `/radar-wiadomosci`,
   `/radar-uczelni`, `/radar-repozytoriow`, `/radar-crowdfunding`, `/odkrycia`, `/historia`
-  i `/zrodla` zwróciły HTTP 200; `/zrodla` pokazało wszystkie dziewięć stałych źródeł;
-  w logu `Stałe źródła są gotowe (nowych: 9).`, brak wpisów `fail:`/`crit:`, zamknięcie
+  i `/zrodla` zwróciły HTTP 200; `/zrodla` pokazało stałe źródła;
+  w logu `Stałe źródła są gotowe (nowych: N).`, brak wpisów `fail:`/`crit:`, zamknięcie
   SIGTERM odnotowane jako `Application is shutting down...`.
 
 Znane ograniczenia Etapu 4:
 
 - kanał Nauka w Polsce zawiera również starszą pozycję (2018) obok aktualnych wiadomości;
   data jest zachowywana tak, jak podał ją wydawca – nie jest „odświeżana",
-- część kanałów (ScienceDaily, ScienceAlert, New Scientist) publikuje treści po angielsku;
-  interfejs aplikacji pozostaje w języku polskim,
+- część źródeł może publikować treści po angielsku; interfejs aplikacji pozostaje w języku polskim,
 - data z HTML jest ustawiana tylko wtedy, gdy strona udostępnia rozpoznawalny element daty,
 - źródła nie omijają zabezpieczeń serwisów; ograniczenie Kickstartera (HTTP 403) pozostaje
   bez zmian (opisane powyżej).

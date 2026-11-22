@@ -16,6 +16,10 @@ if (!File.Exists(Path.Combine(Environment.CurrentDirectory, "appsettings.json"))
 
 var builder = WebApplication.CreateBuilder(args);
 
+// VS 2025 / niektóre scenariusze uruchamiania nie ładują manifestu static web assets automatycznie,
+// co objawia się 200 z długością 0 dla /_framework/* i innych zasobów. Jawne załadowanie naprawia problem.
+Microsoft.AspNetCore.Hosting.StaticWebAssets.StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+
 builder.Logging.AddRadarFileLogging(builder.Configuration);
 
 var radarOptions = RadarOptions.Load(builder.Configuration);
@@ -50,11 +54,18 @@ if (radarOptions.SingleInstance)
     }
 }
 
+var inContainer = string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
+var configuredAspNetUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
 // Port 0 jest używany w testach integracyjnych – Kestrel wybiera wtedy wolny port.
-var port = radarOptions.Port == 0 ? 0 : PortSelector.FindAvailable(radarOptions.Port);
-var appUrl = $"http://127.0.0.1:{port}";
-builder.WebHost.UseUrls(appUrl);
-builder.Services.AddSingleton(new RadarRuntimeInfo(port == 0 ? string.Empty : appUrl));
+var port = radarOptions.Port == 0
+    ? 0
+    : inContainer ? radarOptions.Port : PortSelector.FindAvailable(radarOptions.Port);
+var appUrl = port == 0
+    ? "http://127.0.0.1:0"
+    : inContainer ? $"http://0.0.0.0:{port}" : $"http://127.0.0.1:{port}";
+var publicUrl = port == 0 ? string.Empty : $"http://127.0.0.1:{port}";
+builder.WebHost.UseUrls(configuredAspNetUrls is { Length: > 0 } && inContainer ? configuredAspNetUrls : appUrl);
+builder.Services.AddSingleton(new RadarRuntimeInfo(publicUrl));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

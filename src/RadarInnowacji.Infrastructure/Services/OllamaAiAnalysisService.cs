@@ -19,12 +19,14 @@ public sealed class OllamaAiAnalysisService(
     private const string ClientName = "RadarAi";
 
     private const string SystemPrompt =
-        "Jesteś analitykiem innowacji. Przeanalizuj dostarczony materiał i zwróć WYŁĄCZNIE poprawny JSON " +
+        "Jesteś szybkim filtrem innowacji. Przeanalizuj materiał i zwróć WYŁĄCZNIE poprawny JSON " +
         "z kluczami: isPotentialInnovation (true/false), confidence (liczba 0-100), innovationType, problem, " +
         "solution, noveltyDescription, technologies (tablica), reason, suggestedCategories (tablica), " +
-        "missingInformation. Odpowiadaj po polsku. Nie przedstawiaj przypuszczeń jako potwierdzonych faktów. " +
-        "Jeżeli jakiej informacji nie ma w materiale, wpisz w missingInformation „Brak danych” i nie dopisuj własnych faktów. " +
-        "Nie odrzucaj projektu tylko dlatego, że nie zawiera słowa „innowacja”.";
+        "missingInformation. Odpowiadaj po polsku, krótko i rzeczowo. " +
+        "Ustaw isPotentialInnovation=false i confidence>=80 dla oczywistego szumu: strony błędów, przekierowania, " +
+        "wymóg włączenia JavaScript/cookies, 'Czytaj więcej', puste/placeholderowe strony, brak opisu rozwiązania. " +
+        "Nie przedstawiaj przypuszczeń jako faktów; brak danych oznacz jako 'Brak danych'. " +
+        "Nie odrzucaj realnego projektu tylko dlatego, że nie zawiera słowa 'innowacja'.";
 
     public async Task<AiAnalysisResult> AnalyzeAsync(
         Discovery discovery,

@@ -1,0 +1,12 @@
+﻿using Microsoft.EntityFrameworkCore;
+using RadarInnowacji.Core.Entities;
+using RadarInnowacji.Core.Enums;
+using RadarInnowacji.Core.Models;
+using RadarInnowacji.Infrastructure.Database;
+var opts = new DbContextOptionsBuilder<RadarDbContext>().UseSqlite("Data Source=:memory:").Options;
+using var db = new RadarDbContext(opts);
+db.Database.OpenConnection();
+db.Database.EnsureCreated();
+var seeder = new PermanentSourcesSeeder(db);
+await seeder.SeedAsync();
+foreach(var s in db.Sources) Console.WriteLine(s.Url);

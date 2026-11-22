@@ -28,8 +28,20 @@ public sealed class BackgroundScanJob(
             await Task.Delay(delay, stoppingToken);
         }
 
-        await RunScanCycleAsync(stoppingToken);
+        if (scanning.Continuous)
+        {
+            logger.LogInformation("Tryb ciągłego skanowania aktywny (przerwa {Delay}s).", scanning.ContinuousDelaySeconds);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await RunScanCycleAsync(stoppingToken);
+                var pause = TimeSpan.FromSeconds(Math.Clamp(scanning.ContinuousDelaySeconds, 5, 3600));
+                await Task.Delay(pause, stoppingToken);
+            }
 
+            return;
+        }
+
+        await RunScanCycleAsync(stoppingToken);
         var interval = TimeSpan.FromMinutes(Math.Max(1, scanning.IntervalMinutes));
         using var timer = new PeriodicTimer(interval);
 

@@ -28,7 +28,7 @@ public class AiAnalysisServiceTests
             return FakeHttpMessageHandler.Json(response);
         });
 
-        var service = CreateService(handler, "qwen3:1.7b");
+        var service = CreateService(handler, "SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0");
         var result = await service.AnalyzeAsync(CreateDiscovery());
 
         Assert.True(result.IsPotentialInnovation);
@@ -37,7 +37,7 @@ public class AiAnalysisServiceTests
         Assert.Equal(new[] { "IoT", "AI" }, result.Technologies);
         Assert.Equal("Robotyka", Assert.Single(result.SuggestedCategories));
         Assert.Equal("Brak danych o kosztach", result.MissingInformation);
-        Assert.Contains("qwen3:1.7b", requestBody);
+        Assert.Contains("SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0", requestBody);
         Assert.Contains("\"format\":\"json\"", requestBody);
     }
 
@@ -72,13 +72,13 @@ public class AiAnalysisServiceTests
     {
         var handler = new FakeHttpMessageHandler(_ => FakeHttpMessageHandler.Json(
             "{\"models\":[{\"name\":\"qwen2.5-coder:latest\"}]}"));
-        var service = CreateService(handler, "qwen3:1.7b");
+        var service = CreateService(handler, "SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0");
 
         var result = await service.TestConnectionAsync();
 
         Assert.False(result.IsAvailable);
         Assert.Contains("qwen2.5-coder", result.Message);
-        Assert.Equal("qwen3:1.7b", result.Model);
+        Assert.Equal("SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0", result.Model);
     }
 
     private static OllamaAiAnalysisService CreateService(HttpMessageHandler handler, string model)

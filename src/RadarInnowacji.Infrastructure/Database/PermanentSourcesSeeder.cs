@@ -16,80 +16,41 @@ public sealed record PermanentSourceDefinition(
     string Configuration = "{}");
 
 /// <summary>
-/// Dodaje do pustej bazy rzeczywiste źródła: wyszukiwanie Kickstartera, strony,
-/// na których uczelnie publikują projekty studentów, oraz kanały wiadomości naukowo-technologicznych.
-/// Źródła nie są oznaczone jako DEMO
+/// Dodaje do pustej bazy rzeczywiste, polskojęzyczne źródła: uczelnie, instytucje
+/// publiczne, portale naukowe i wsparcia innowacji. Źródła nie są oznaczone jako DEMO
 /// i nie są nadpisywane, jeśli użytkownik już je zmienił.
 /// </summary>
 public sealed class PermanentSourcesSeeder(RadarDbContext db) : IPermanentSourcesSeeder
 {
-    private const string KickstarterSearchBaseUrl = "https://www.kickstarter.com";
-    private const int TechnologyCategoryId = 16;
-
     public static IReadOnlyList<PermanentSourceDefinition> Definitions { get; } =
     [
-        new(
-            "Kickstarter – wyszukiwanie projektów",
-            KickstarterSearchBaseUrl,
-            RadarKind.Crowdfunding,
-            SourceType.KickstarterApi,
-            180,
-            SourceConfiguration.Create(null, null, new KickstarterQuery
-            {
-                Keywords = KickstarterQuery.DefaultKeywords,
-                CategoryIds = [TechnologyCategoryId],
-                State = KickstarterQuery.DefaultState,
-                Sort = KickstarterQuery.DefaultSort,
-                LaunchedWithinDays = KickstarterQuery.DefaultLaunchedWithinDays
-            })),
-        new(
-            "AGH – projekty studenckie",
-            "https://www.agh.edu.pl/slowa-kluczowe/projekty-studenckie",
-            RadarKind.Uczelnia,
-            SourceType.HtmlPage,
-            720),
-        new(
-            "Politechnika Gdańska – Uczelnie Przyszłości",
-            "https://pg.edu.pl/studenci/projekty/uczelnie-przyszlosci/aktualnosci",
-            RadarKind.Uczelnia,
-            SourceType.HtmlPage,
-            720),
-        new(
-            "UAM WMiI – studenckie projekty badawczo-rozwojowe",
-            "https://wmi.amu.edu.pl/wydzial/projekty/studenckie-projekty-badawczo-rozwojowe",
-            RadarKind.Uczelnia,
-            SourceType.HtmlPage,
-            720),
-        new(
-            "Spider's Web – technologie",
-            "https://www.spidersweb.pl/feed",
-            RadarKind.Wiadomosci,
-            SourceType.Rss,
-            360),
-        new(
-            "Nauka w Polsce – aktualności",
-            "https://naukawpolsce.pl/rss.xml",
-            RadarKind.Wiadomosci,
-            SourceType.Rss,
-            360),
-        new(
-            "ScienceDaily – najnowsze badania",
-            "https://www.sciencedaily.com/rss/all.xml",
-            RadarKind.Wiadomosci,
-            SourceType.Rss,
-            360),
-        new(
-            "ScienceAlert – odkrycia naukowe",
-            "https://www.sciencealert.com/feed",
-            RadarKind.Wiadomosci,
-            SourceType.Rss,
-            360),
-        new(
-            "New Scientist – wiadomości naukowe",
-            "https://www.newscientist.com/feed/",
-            RadarKind.Wiadomosci,
-            SourceType.Rss,
-            360)
+        // Uczelnie – strony transferu wiedzy / innowacji / aktualności
+        new("Politechnika Warszawska – aktualności", "https://www.pw.edu.pl/aktualnosci", RadarKind.Uczelnia, SourceType.HtmlPage, 720),
+        new("AGH – projekty studenckie", "https://www.agh.edu.pl/slowa-kluczowe/projekty-studenckie", RadarKind.Uczelnia, SourceType.HtmlPage, 720),
+        new("Politechnika Gdańska – Uczelnie Przyszłości", "https://pg.edu.pl/studenci/projekty/uczelnie-przyszlosci/aktualnosci", RadarKind.Uczelnia, SourceType.HtmlPage, 720),
+        new("Politechnika Wrocławska – aktualności", "https://pwr.edu.pl/uczelnia/aktualnosci", RadarKind.Uczelnia, SourceType.HtmlPage, 720),
+        new("Politechnika Krakowska – aktualności", "https://www.pk.edu.pl/index.php?option=com_content&view=category&layout=blog&id=2&Itemid=101&lang=pl", RadarKind.Uczelnia, SourceType.HtmlPage, 720),
+        new("Uniwersytet Jagielloński – nauka i innowacje", "https://www.uj.edu.pl/wiadomosci", RadarKind.Uczelnia, SourceType.HtmlPage, 720),
+        new("UAM WMiI – projekty badawczo-rozwojowe", "https://wmi.amu.edu.pl/wydzial/projekty/studenckie-projekty-badawczo-rozwojowe", RadarKind.Uczelnia, SourceType.HtmlPage, 720),
+
+        // Instytucje publiczne / programy innowacyjne
+        new("NCBR – aktualności", "https://www.gov.pl/web/ncbr/aktualnosci", RadarKind.Wiadomosci, SourceType.HtmlPage, 360),
+        new("NCN – aktualności", "https://www.ncn.gov.pl/aktualnosci", RadarKind.Wiadomosci, SourceType.HtmlPage, 360),
+        new("PARP – aktualności", "https://www.parp.gov.pl/component/content/article/57887", RadarKind.Wiadomosci, SourceType.HtmlPage, 360),
+        new("Ministerstwo Nauki i Szkolnictwa Wyższego – aktualności", "https://www.gov.pl/web/nauka/aktualnosci", RadarKind.Wiadomosci, SourceType.HtmlPage, 360),
+        new("NAWA – aktualności", "https://nawa.gov.pl/nawa/aktualnosci", RadarKind.Wiadomosci, SourceType.HtmlPage, 720),
+        new("Urząd Patentowy RP – aktualności", "https://uprp.gov.pl/pl/o-urzedzie/aktualnosci", RadarKind.Wiadomosci, SourceType.HtmlPage, 720),
+        new("PAIH – aktualności", "https://www.paih.gov.pl/aktualnosci", RadarKind.Wiadomosci, SourceType.HtmlPage, 720),
+        new("Horyzont Europa – aktualności", "https://www.gov.pl/web/horyzont-europa/aktualnosci", RadarKind.Wiadomosci, SourceType.HtmlPage, 720),
+
+        // Nauka / innowacje w Polsce – portale informacyjne i RSS
+        new("Nauka w Polsce (PAP) – RSS", "https://naukawpolsce.pl/rss.xml", RadarKind.Wiadomosci, SourceType.Rss, 360),
+        new("Spider's Web – technologie (RSS)", "https://spidersweb.pl/api/post/feed/feed-gn", RadarKind.Wiadomosci, SourceType.Rss, 360),
+        new("Nauka w Polsce – aktualności", "https://naukawpolsce.pl/aktualnosci/news", RadarKind.Wiadomosci, SourceType.HtmlPage, 360),
+
+        // Polskie platformy wsparcia/crowdfunding – obserwowane jako strony publiczne (informacyjnie)
+        new("PolakPotrafi.pl – projekty", "https://polakpotrafi.pl/projekty", RadarKind.Wiadomosci, SourceType.HtmlPage, 720),
+        new("Wesprzyj.to – zbiórki", "https://wesprzyj.to/wyszukaj", RadarKind.Wiadomosci, SourceType.HtmlPage, 720)
     ];
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)

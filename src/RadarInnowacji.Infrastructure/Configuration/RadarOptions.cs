@@ -75,6 +75,16 @@ public sealed class RadarOptions
             options.Scanning.MaxItemsPerSource = maxItems;
         }
 
+        if (bool.TryParse(Environment.GetEnvironmentVariable("RADAR_CONTINUOUS_SCANNING"), out var continuous))
+        {
+            options.Scanning.Continuous = continuous;
+        }
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_CONTINUOUS_DELAY_SECONDS"), out var continuousDelay))
+        {
+            options.Scanning.ContinuousDelaySeconds = continuousDelay;
+        }
+
         if (bool.TryParse(Environment.GetEnvironmentVariable("RADAR_AI_ENABLED"), out var aiEnabled))
         {
             options.Ai.Enabled = aiEnabled;
