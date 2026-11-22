@@ -3,11 +3,19 @@
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
 repozytoriach kodu źródłowego, wiadomościach internetowych oraz na portalach crowdfundingowych.
 
-**Status projektu: ETAP 8 – INSTALATOR I FINALIZACJA (zaimplementowany, oczekuje na akceptację).**
+**Status projektu: ETAP 9 – OCENA INNOWACJI I WDROŻENIA (zaimplementowany, oczekuje na akceptację).**
 Etapy 0–7 zostały zaakceptowane przez zamawiającego (Etap 7 – wraz z poleceniem rozpoczęcia Etapu 8).
+Etap 8 (instalator i finalizacja) jest zaimplementowany; Etap 9 rozszerza aplikację o ocenę
+potencjału innowacji, rekomendacje ścieżek, lejek wdrożeń, zgłoszenia od instytucji i katalog odbiorców.
 
-Dla osoby oceniającej: instalacja i uruchomienie – [`docs/INSTALACJA.md`](docs/INSTALACJA.md),
-scenariusz pokazu – [`docs/DEMO.md`](docs/DEMO.md). W Etapie 3, na wyraźne
+Dla osoby oceniającej:
+
+- instalacja i uruchomienie – [`docs/INSTALACJA.md`](docs/INSTALACJA.md),
+- włączanie aplikacji i szybki test dla testujących – [`docs/INSTRUKCJA_TESTOWANIA.txt`](docs/INSTRUKCJA_TESTOWANIA.txt),
+- opis wszystkich funkcji – [`docs/INSTRUKCJA_UZYCIA.txt`](docs/INSTRUKCJA_UZYCIA.txt),
+- scenariusz pokazu – [`docs/DEMO.md`](docs/DEMO.md).
+
+W Etapie 3, na wyraźne
 życzenie zamawiającego, dodano też osobny, czwarty radar portali crowdfundingowych
 (zmiana wobec pierwotnie trójradarowego interfejsu z `src/MainJob.txt`).
 
@@ -37,6 +45,8 @@ RadarInnowacji/
 │   └── RadarInnowacji.IntegrationTests/ # testy hosta HTTP i stron
 ├── docs/
 │   ├── INSTALACJA.md                 # instalacja, uruchomienie, zamykanie, deinstalacja
+│   ├── INSTRUKCJA_TESTOWANIA.txt     # włączanie aplikacji, szybki test, zgłaszanie błędów
+│   ├── INSTRUKCJA_UZYCIA.txt         # opis wszystkich funkcji i typowy scenariusz pracy
 │   └── DEMO.md                       # scenariusz demonstracji (~10 min)
 └── installer/
     ├── RadarInnowacji.iss            # skrypt Inno Setup 6
@@ -117,6 +127,11 @@ nie musi wywoływać `dotnet ef database update`.
 | `Categories:OllamaEmbeddingModel` | `multilingual-e5-small` | Model używany przez dostawcę `Ollama` |
 | `Categories:OllamaBaseUrl` | `http://127.0.0.1:11434` | Adres lokalnego Ollamy dla embeddingów |
 | `Categories:IntervalMinutes` | `60` | Częstotliwość grupowania |
+| `Assessment:Enabled` | `true` | Włączenie automatycznej oceny projektów w tle |
+| `Assessment:IntervalMinutes` | `60` | Częstotliwość oceniania projektów bez aktualnej oceny |
+| `Assessment:StartDelaySeconds` | `120` | Opóźnienie pierwszego cyklu oceny po starcie |
+| `Assessment:MaxProjectsPerRun` | `300` | Maksymalna liczba projektów ocenianych w jednym cyklu |
+| `Assessment:Weights` | `20/20/20/15/15/10` | Wagi kryteriów: nowość, problem i wpływ, przenoszalność, dojrzałość, gotowość wdrożeniowa, kompletność |
 
 Zmienne środowiskowe nadpisują ustawienia uruchomieniowe:
 `RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`,
@@ -509,6 +524,65 @@ Znane ograniczenia Etapu 8:
 - nazwa pliku wykonywalnego to `RadarInnowacji.Web.exe` (zmiana nazwy zestawu wymagałaby
   zmiany nazw zasobów statycznych Blazora); skróty mają nazwę „Radar Innowacji”.
 
+## Ocena innowacji i wdrożenia (Etap 9)
+
+Etap 9 odpowiada na pytanie, co dzieje się z innowacją po jej wykryciu: ocena, rekomendacja
+dalszej ścieżki, skierowanie do odbiorcy, pilotaż i wdrożenie.
+
+- migracja `20261122021259_Etap9Assessment`: encje `ProjectAssessment`,
+  `AssessmentCriterionScore`, `CriterionOverride`, `ProjectRecommendation`, `ProjectReferral`,
+  `ProjectPipelineEvent` i `Recipient`; nowe pola profilu projektu w `InnovationProject`,
+- **karta oceny** (`OcenaProjektu.razor` na stronie projektu): sześć kryteriów w skali 0–5
+  z wagami – nowość 20, problem i wpływ 20, możliwość przeniesienia i skalowania 20,
+  dojrzałość 15, gotowość do wdrożenia 15, kompletność informacji 10 – dające wynik 0–100
+  wraz z pewnością i kompletnością. Każda ocena ma uzasadnienie z jawnych reguł
+  (`AssessmentScorer`); wynik AI jest jednym z sygnałów, a ekspert może zmienić każdą ocenę
+  z uzasadnieniem (`CriterionOverride`),
+- **rekomendacje** (`RecommendationEngine`, `DevelopmentPathCatalog`): tabela reguł wybiera
+  1–2 ścieżki spośród siedmiu (uzupełnienie informacji, transfer do innych instytucji,
+  wdrożenie w sektorze publicznym, ochrona własności intelektualnej i akceleracja,
+  komercjalizacja, dalszy rozwój, obserwacja) wraz z następnymi krokami i miernikami skuteczności,
+- **Lejek innowacji** (`/lejek`): dziesięć etapów procesu (wykryta, zgłoszona, w ocenie,
+  oceniona, rekomendowana, skierowana do odbiorcy, pilotaż, wdrożona, odłożona, odrzucona),
+  rozkład rekomendowanych ścieżek, filtry, przycisk „Oceń projekty bez aktualnej oceny”
+  oraz eksport `/eksport/projekty.csv` i `/eksport/projekty.json`,
+- **Zgłoś innowację** (`/zglos`): formularz dla szkół, uczelni, samorządów i innych instytucji;
+  przed zapisem wyszukuje podobne projekty, a zgłoszenie od razu otrzymuje kartę oceny,
+  ścieżkę i listę możliwych odbiorców. Innowacja nie musi być technologiczna; adres e-mail
+  jest zapisywany wyłącznie po wyrażeniu zgody,
+- **Odbiorcy i partnerzy** (`/odbiorcy`): katalog odbiorców (typ, sektory, ścieżki, minimalny
+  etap rozwoju) dopasowywanych przez `RecipientMatcher`; wpisy `PRZYKŁAD` to ogólne typy
+  odbiorców, które instytucja zastępuje własnymi partnerami,
+- **Metodyka oceny** (`/metodyka`): proces, kryteria, wagi i reguły generowane z tych samych
+  definicji, których używa silnik oceny,
+- `AssessmentJob` ocenia w tle projekty bez aktualnej oceny (sekcja `Radar:Assessment`),
+- dashboard: wykres aktywności pokazuje ciągłe 30 dni kalendarzowych (dni bez odkryć jako 0),
+  z osiami, datami i podsumowaniem; współrzędne SVG są niezależne od ustawień regionalnych,
+- poprawka CSS: przyciski-linki (`a.btn`) nie dziedziczą koloru zwykłych linków
+  (wcześniej np. „Zgłoś innowację” miał niebieski tekst na niebieskim tle),
+- dokumentacja: `docs/INSTRUKCJA_UZYCIA.txt` i `docs/INSTRUKCJA_TESTOWANIA.txt`.
+
+Wynik weryfikacji Etapu 9 (Linux, 22.11.2026):
+
+- `dotnet test RadarInnowacji.sln` – **242 testy zaliczone** (221 jednostkowych + 21 integracyjnych),
+  w tym testy reguł oceny, scenariuszy rekomendacji i ciągłości danych wykresu aktywności,
+- test runtime na świeżym katalogu danych z załadowanymi przykładami: wszystkie strony z menu
+  otwierają się; „Oceń projekty bez aktualnej oceny” oceniło 10 projektów DEMO
+  (rekomendacje: 7 × dalszy rozwój, 3 × ochrona IP i akceleracja).
+
+Znane ograniczenia Etapu 9:
+
+- reguły oceny są heurystyczne i jawne – wynik jest wskazówką do weryfikacji przez eksperta,
+  a nie potwierdzeniem innowacyjności,
+- katalog odbiorców zawiera tylko ogólne typy (`PRZYKŁAD`); konkretnych partnerów
+  wprowadza instytucja korzystająca z radaru.
+
+Instalator został przebudowany po Etapie 9 (`installer/build-installer.sh`, Inno Setup 6
+w prefiksie wine `~/.wine-inno`, `ISCC=~/.wine-inno/drive_c/InnoSetup6/ISCC.exe`):
+`RadarInnowacji-Setup.exe` (ok. 38 MB) zawiera zmiany Etapu 9 oraz instrukcje
+„Instrukcja użycia” i „Instrukcja testowania” (pliki `.txt` i skróty w menu Start).
+Testu instalacji na czystym Windows nadal nie wykonano.
+
 ## Co działa w Etapie 0 (zaakceptowanym)
 
 - uruchamialna aplikacja Blazor Web App z Interactive Server,
@@ -583,6 +657,7 @@ Znane ograniczenia Etapu 8:
 
 ## Dalsze etapy
 
-Zgodnie z `src/MainJob.txt` Etap 8 jest ostatnim etapem planu. Po jego akceptacji możliwe
-są wyłącznie poprawki zgłoszone po teście na czystym Windows.
+Zgodnie z `src/MainJob.txt` Etap 8 był ostatnim etapem pierwotnego planu; Etap 9 (ocena
+innowacji i wdrożenia) jest jego rozszerzeniem. Po akceptacji możliwe są poprawki zgłoszone
+przez testujących (zob. `docs/INSTRUKCJA_TESTOWANIA.txt`) i po teście na czystym Windows.
 Każdy etap jest wykonywany wyłącznie po akceptacji poprzedniego.

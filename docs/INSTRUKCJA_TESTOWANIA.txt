@@ -1,0 +1,136 @@
+RADAR INNOWACJI – INSTRUKCJA WŁĄCZANIA DLA TESTUJĄCYCH
+=======================================================
+
+Ta instrukcja opisuje, jak zainstalować i uruchomić aplikację do testów,
+jak szybko sprawdzić, że działa, oraz co dołączyć do zgłoszenia błędu.
+Opis wszystkich funkcji: INSTRUKCJA_UZYCIA.txt.
+
+Są dwa sposoby uruchomienia:
+  A. Instalator dla Windows (zalecany – tak jak u użytkownika końcowego).
+  B. Ze źródeł (Windows lub Linux, wymaga .NET SDK).
+
+
+A. INSTALATOR (WINDOWS 10/11, 64-BIT)
+-------------------------------------
+
+Wymagania: Windows 10 (1809+) lub 11 x64, przeglądarka, ok. 300 MB miejsca.
+NIE trzeba instalować .NET, Visual Studio ani uprawnień administratora.
+Do testów najlepiej użyć czystej maszyny (np. Windows Sandbox lub nowa
+maszyna wirtualna).
+
+  1. Uruchom plik RadarInnowacji-Setup.exe.
+     Jeśli pojawi się "System Windows ochronił Twój komputer" (instalator
+     nie jest podpisany): "Więcej informacji" -> "Uruchom mimo to".
+  2. Zostaw zaznaczone "Utwórz skrót na pulpicie" -> "Zainstaluj".
+  3. Na końcu zaznacz "Uruchom Radar Innowacji" -> "Zakończ".
+  4. Otworzy się okno konsoli z adresem (np. http://127.0.0.1:5080),
+     a po kilku sekundach przeglądarka z Dashboardem.
+     Jeśli przeglądarka się nie otworzy – wpisz adres z okna konsoli.
+
+Kolejne uruchomienia: skrót "Radar Innowacji" na pulpicie lub w menu Start.
+
+Zamykanie: przycisk "Zamknij aplikację" na dole menu bocznego -> "Zamknij"
+(albo zamknięcie okna konsoli / Ctrl+C). Zamknięcie samej karty
+przeglądarki NIE wyłącza aplikacji.
+
+Dane i logi: %LOCALAPPDATA%\RadarInnowacji (radar.db, logs\)
+Program:     %LOCALAPPDATA%\Programs\RadarInnowacji
+
+Odinstalowanie: Ustawienia -> Aplikacje -> Radar Innowacji -> Odinstaluj.
+Pytanie "Czy usunąć również dane użytkownika?":
+  "Nie" – dane zostają (przydatne przy teście aktualizacji),
+  "Tak" – pełne wyczyszczenie przed kolejnym testem od zera.
+
+
+B. URUCHOMIENIE ZE ŹRÓDEŁ (WINDOWS / LINUX)
+-------------------------------------------
+
+Wymagania: .NET SDK 10.0.404 (wersja z pliku global.json), git.
+
+  1. Pobierz kod:
+       git clone https://github.com/fulgur93/RadarInnowacji.git
+       cd RadarInnowacji
+  2. (Opcjonalnie) uruchom testy:
+       dotnet test RadarInnowacji.sln
+  3. Uruchom aplikację:
+       dotnet run --project src/RadarInnowacji.Web
+  4. Adres pojawi się w konsoli (domyślnie http://127.0.0.1:5080),
+     przeglądarka otworzy się automatycznie. Zamykanie: Ctrl+C.
+
+Dane: Windows %LOCALAPPDATA%\RadarInnowacji,
+      Linux   ~/.local/share/RadarInnowacji
+
+Przydatne przy testach (zmienne środowiskowe, ustawiane przed uruchomieniem):
+
+  RADAR_DATA_DIR=<katalog>       osobny, czysty katalog danych – test
+                                 "od zera" bez ruszania własnej bazy
+  RADAR_PORT=5085                inny port (gdy 5080–5089 są zajęte)
+  RADAR_OPEN_BROWSER=false       bez automatycznego otwierania przeglądarki
+  RADAR_SCANNING_ENABLED=false   bez skanowania internetu (testy offline)
+  RADAR_AI_ENABLED=false         bez analizy AI
+
+Przykład (Linux):
+  RADAR_DATA_DIR=/tmp/radar-test RADAR_SCANNING_ENABLED=false \
+    dotnet run --project src/RadarInnowacji.Web
+
+Przykład (Windows PowerShell):
+  $env:RADAR_DATA_DIR="C:\radar-test"; dotnet run --project src/RadarInnowacji.Web
+
+
+SZYBKI TEST PO WŁĄCZENIU (OK. 5 MINUT)
+--------------------------------------
+
+  [ ] Dashboard otwiera się bez błędów.
+  [ ] Źródła danych -> karta "Dane demonstracyjne" -> "Załaduj przykłady"
+      -> komunikat "Załadowano 28 przykładowych odkryć".
+  [ ] Dashboard: liczniki (28 odkryć, 8 kategorii), wykres aktywności
+      z ostatnich 30 dni z osiami i datami.
+  [ ] Każdy z 4 radarów otwiera się; filtry i "Szukaj" działają
+      (domyślny zakres to ostatnie 30 dni).
+  [ ] Wszystkie odkrycia -> kliknij tytuł -> karta odkrycia z danymi.
+  [ ] Wspólny radar projektów -> projekt "Inteligentna stacja jakości
+      powietrza" -> karta projektu.
+  [ ] Lejek innowacji -> "Oceń projekty bez aktualnej oceny"
+      -> projekty mają wynik 0–100 i ścieżkę.
+  [ ] Karta projektu: karta oceny (6 kryteriów), przycisk "Zmień".
+  [ ] Zgłoś innowację -> "Wstaw przykład" -> "Wyślij zgłoszenie".
+  [ ] Odbiorcy i partnerzy, Metodyka oceny, Kategorie i trendy,
+      Historia skanowania, Ustawienia – strony się otwierają.
+  [ ] (Z internetem) Źródła danych -> "Skanuj" przy wybranym źródle
+      -> wynik w Historii skanowania, nowe materiały bez znaczka DEMO.
+  [ ] Ponowne kliknięcie skrótu nie uruchamia drugiej kopii – otwiera
+      kartę z działającą aplikacją.
+  [ ] "Zamknij aplikację" -> okno konsoli znika; po ponownym starcie
+      dane nadal są widoczne.
+  [ ] Źródła danych -> "Usuń przykłady" -> znikają tylko dane DEMO.
+
+Analiza AI jest opcjonalna. Bez Ollamy status AI to "niedostępne"
+i jest to zachowanie prawidłowe. Aby przetestować AI:
+  1. Zainstaluj Ollamę (https://ollama.com).
+  2. ollama pull qwen3:1.7b
+  3. Ustawienia -> "Test połączenia".
+
+
+ZGŁASZANIE BŁĘDÓW
+-----------------
+
+Do zgłoszenia dołącz:
+  - co zrobiono krok po kroku i czego się spodziewano,
+  - zrzut ekranu,
+  - system (Windows 10/11, Linux) i sposób uruchomienia (A lub B),
+  - adres strony, na której wystąpił błąd (np. /lejek),
+  - najnowszy plik logu z katalogu logs\ (ścieżki – patrz wyżej
+    lub strona Ustawienia).
+
+
+ZNANE OGRANICZENIA (NIE ZGŁASZAĆ JAKO BŁĘDY)
+--------------------------------------------
+
+  - Ostrzeżenie SmartScreen przy instalacji – instalator nie jest podpisany.
+  - Aplikacja działa w oknie konsoli; brak ikony w zasobniku systemowym.
+  - Kickstarter może zwracać HTTP 403 (ochrona serwisu) – błąd pojawia się
+    w Historii skanowania, pozostałe źródła działają dalej.
+  - Grupowanie kategorii pomija dane DEMO, więc propozycje nowych kategorii
+    pojawiają się dopiero po skanowaniu rzeczywistych źródeł. Na samych
+    danych DEMO wyszukiwanie duplikatów może nie znaleźć żadnych par.
+  - Część kanałów wiadomości publikuje treści po angielsku.

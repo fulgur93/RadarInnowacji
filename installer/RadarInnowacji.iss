@@ -50,10 +50,14 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 ; Instrukcje jako .txt – na czystym Windows otworzy je Notatnik.
 Source: "..\docs\INSTALACJA.md"; DestDir: "{app}\docs"; DestName: "Instalacja.txt"; Flags: ignoreversion
 Source: "..\docs\DEMO.md"; DestDir: "{app}\docs"; DestName: "Instrukcja-demonstracji.txt"; Flags: ignoreversion
+Source: "..\docs\INSTRUKCJA_UZYCIA.txt"; DestDir: "{app}\docs"; DestName: "Instrukcja-uzycia.txt"; Flags: ignoreversion
+Source: "..\docs\INSTRUKCJA_TESTOWANIA.txt"; DestDir: "{app}\docs"; DestName: "Instrukcja-testowania.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"
 Name: "{group}\Instrukcja demonstracji"; Filename: "{app}\docs\Instrukcja-demonstracji.txt"
+Name: "{group}\Instrukcja użycia"; Filename: "{app}\docs\Instrukcja-uzycia.txt"
+Name: "{group}\Instrukcja testowania"; Filename: "{app}\docs\Instrukcja-testowania.txt"
 Name: "{group}\Odinstaluj {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
