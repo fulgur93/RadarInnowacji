@@ -21,6 +21,7 @@ public sealed class RadarOptions
     public AiOptions Ai { get; set; } = new();
     public CategoryOptions Categories { get; set; } = new();
     public ProjectOptions Projects { get; set; } = new();
+    public AssessmentOptions Assessment { get; set; } = new();
 
     public string EffectiveDatabasePath => string.IsNullOrWhiteSpace(DatabasePath)
         ? RadarDataPaths.DatabasePath
@@ -146,6 +147,11 @@ public sealed class RadarOptions
         if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_PROJECTS_INTERVAL"), out var projectsInterval))
         {
             options.Projects.IntervalMinutes = projectsInterval;
+        }
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("RADAR_ASSESSMENT_ENABLED"), out var assessmentEnabled))
+        {
+            options.Assessment.Enabled = assessmentEnabled;
         }
     }
 }

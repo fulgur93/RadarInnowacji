@@ -6,5 +6,6 @@ public enum RadarKind
     Uczelnia = 0,
     Repozytorium = 1,
     Wiadomosci = 2,
-    Crowdfunding = 3
+    Crowdfunding = 3,
+    Zgloszenia = 4
 }

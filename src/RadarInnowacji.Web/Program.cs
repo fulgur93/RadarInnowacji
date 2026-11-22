@@ -1,3 +1,4 @@
+using RadarInnowacji.Core.Interfaces;
 using RadarInnowacji.Infrastructure;
 using RadarInnowacji.Infrastructure.Configuration;
 using RadarInnowacji.Infrastructure.Logging;
@@ -64,6 +65,7 @@ builder.Services.AddHostedService<BackgroundScanJob>();
 builder.Services.AddHostedService<AiAnalysisJob>();
 builder.Services.AddHostedService<CategoryAnalysisJob>();
 builder.Services.AddHostedService<ProjectAnalysisJob>();
+builder.Services.AddHostedService<AssessmentJob>();
 
 var app = builder.Build();
 
@@ -76,6 +78,22 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
+// Eksport projektów z oceną i rekomendacją – punkt integracji z innymi systemami.
+// Aplikacja nasłuchuje wyłącznie na 127.0.0.1, więc eksport nie jest dostępny z sieci.
+app.MapGet("/eksport/projekty.csv", async (IPipelineService pipeline, CancellationToken cancellationToken) =>
+{
+    var csv = await pipeline.ExportCsvAsync(cancellationToken);
+    // BOM, aby arkusz kalkulacyjny poprawnie odczytał polskie znaki.
+    var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray();
+    return Results.File(bytes, "text/csv; charset=utf-8", $"radar-innowacji-projekty-{DateTime.Now:yyyy-MM-dd}.csv");
+});
+app.MapGet("/eksport/projekty.json", async (IPipelineService pipeline, CancellationToken cancellationToken) =>
+    Results.Json(await pipeline.ExportItemsAsync(cancellationToken), new System.Text.Json.JsonSerializerOptions
+    {
+        WriteIndented = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    }));
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

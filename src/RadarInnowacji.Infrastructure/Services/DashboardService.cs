@@ -9,6 +9,8 @@ namespace RadarInnowacji.Infrastructure.Services;
 public sealed class DashboardService(RadarDbContext db, IDiscoveryService discoveryService)
     : IDashboardService
 {
+    private const int ActivityDays = 30;
+
     public async Task<DashboardSummary> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
@@ -43,15 +45,24 @@ public sealed class DashboardService(RadarDbContext db, IDiscoveryService discov
             .Select(x => new CategoryCount(x.Id, x.Name, x.Count))
             .ToList();
 
+        // Ciągłe okno 30 dni kalendarzowych kończące się dziś – dni bez odkryć mają wartość 0,
+        // dzięki czemu wykres pokazuje rzeczywisty rozkład w czasie, a nie tylko dni z danymi.
+        var activityEnd = now.Date;
+        var activityStart = activityEnd.AddDays(-(ActivityDays - 1));
         var discoveredDates = await db.Discoveries
+            .Where(x => x.DiscoveredAt >= activityStart)
             .Select(x => x.DiscoveredAt)
             .ToListAsync(cancellationToken);
 
-        var activity = discoveredDates
+        var countsByDay = discoveredDates
             .GroupBy(x => x.Date)
-            .Select(x => new ActivityPoint(x.Key.ToString("yyyy-MM-dd"), x.Count()))
-            .OrderBy(x => x.Date)
-            .TakeLast(30)
+            .ToDictionary(x => x.Key, x => x.Count());
+
+        var activity = Enumerable.Range(0, ActivityDays)
+            .Select(offset => activityStart.AddDays(offset))
+            .Select(day => new ActivityPoint(
+                day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                countsByDay.GetValueOrDefault(day)))
             .ToList();
 
         var radarCounts = await db.Discoveries

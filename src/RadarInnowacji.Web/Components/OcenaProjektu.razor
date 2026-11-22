@@ -1,0 +1,558 @@
+@using RadarInnowacji.Infrastructure.Assessment
+@inject IAssessmentService Assessment
+@inject IPipelineService Pipeline
+
+<section id="ocena" class="mb-3">
+    @if (karta is null)
+    {
+        <div class="card dashboard-card"><div class="card-body small text-muted">Liczenie oceny…</div></div>
+    }
+    else
+    {
+        <div class="card dashboard-card mb-3 assessment-summary">
+            <div class="card-body d-flex flex-wrap gap-4 align-items-center">
+                <div class="text-center">
+                    <div class="assessment-score badge @UiLabels.WynikKlasa(karta.TotalScore)">@karta.TotalScore.ToString("0")</div>
+                    <div class="small text-muted mt-1">wynik / 100</div>
+                </div>
+                <div class="flex-grow-1">
+                    <h2 class="h5 mb-1">Ocena potencjału i dalsza ścieżka</h2>
+                    <div class="small">
+                        Pewność oceny: <strong>@karta.Confidence%</strong> ·
+                        kompletność informacji: <strong>@karta.Completeness%</strong> ·
+                        etap procesu: <span class="badge bg-dark">@UiLabels.EtapProcesu(karta.Stage)</span>
+                    </div>
+                    <div class="small text-muted">
+                        Ocena z @UiLabels.DataCzas(karta.AssessedAt). Wynik liczony jawnymi regułami
+                        (<a href="/metodyka">metodyka</a>); AI jest tylko jednym z sygnałów, a ekspert może zmienić każdą ocenę.
+                    </div>
+                    @if (karta.Confidence < 60)
+                    {
+                        <div class="small text-warning-emphasis mt-1">
+                            Niska pewność: wynik może wynikać z braku danych, a nie ze słabego pomysłu.
+                            @if (karta.MissingFields.Count > 0)
+                            {
+                                <span>Uzupełnij: @string.Join(", ", karta.MissingFields).</span>
+                            }
+                        </div>
+                    }
+                    @foreach (var note in karta.InferredNotes)
+                    {
+                        <div class="small text-muted">ⓘ @note</div>
+                    }
+                    @if (karta.IsDemo)
+                    {
+                        <span class="badge bg-warning text-dark mt-1">DEMO – dane przykładowe</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(komunikat))
+        {
+            <div class="alert @(komunikatBlad ? "alert-warning" : "alert-success") py-2 small">@komunikat</div>
+        }
+
+        <div class="row g-3">
+            <div class="col-12 col-xxl-7">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header dashboard-card-header">Karta oceny (skala 0–5)</div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0 assessment-table">
+                                <thead>
+                                    <tr><th>Kryterium</th><th class="text-center">Waga</th><th class="text-center">Ocena</th><th>Uzasadnienie</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in karta.Criteria)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="fw-semibold small">@item.Name</div>
+                                                <div class="text-muted small">@item.Question</div>
+                                            </td>
+                                            <td class="text-center small">@item.Weight%</td>
+                                            <td class="text-center">
+                                                <span class="score-dots" aria-label="@item.FinalScore z 5">
+                                                    @for (var i = 1; i <= 5; i++)
+                                                    {
+                                                        <span class="score-dot @(i <= item.FinalScore ? "on" : "")"></span>
+                                                    }
+                                                </span>
+                                                <div class="small fw-semibold">@item.FinalScore/5</div>
+                                                @if (item.Origin == CriterionOrigin.Ekspert)
+                                                {
+                                                    <span class="badge bg-info text-dark">ekspert (reguły: @item.AutomaticScore)</span>
+                                                }
+                                            </td>
+                                            <td class="small">
+                                                <ul class="signal-list mb-0">
+                                                    @foreach (var signal in item.Signals)
+                                                    {
+                                                        <li>@signal</li>
+                                                    }
+                                                </ul>
+                                                @if (!string.IsNullOrWhiteSpace(item.ExpertComment))
+                                                {
+                                                    <div class="mt-1"><strong>Ekspert:</strong> @item.ExpertComment</div>
+                                                }
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                        @onclick="() => EdytujKryterium(item)">Zmień</button>
+                                            </td>
+                                        </tr>
+                                        @if (edytowaneKryterium == item.Criterion)
+                                        {
+                                            <tr class="table-light">
+                                                <td colspan="5">
+                                                    <div class="d-flex flex-wrap gap-2 align-items-end">
+                                                        <div>
+                                                            <label class="form-label form-label-sm mb-0">Ocena eksperta</label>
+                                                            <select class="form-select form-select-sm" @bind="ocenaEksperta">
+                                                                @for (var i = 0; i <= 5; i++)
+                                                                {
+                                                                    <option value="@i">@i</option>
+                                                                }
+                                                            </select>
+                                                        </div>
+                                                        <div class="flex-grow-1">
+                                                            <label class="form-label form-label-sm mb-0">Uzasadnienie *</label>
+                                                            <input class="form-control form-control-sm" @bind="komentarzEksperta" maxlength="2000" />
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm btn-primary" @onclick="ZapiszOceneAsync">Zapisz</button>
+                                                        @if (item.Origin == CriterionOrigin.Ekspert)
+                                                        {
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="PrzywrocOceneAsync">
+                                                                Przywróć ocenę z reguł
+                                                            </button>
+                                                        }
+                                                        <button type="button" class="btn btn-sm btn-link" @onclick="() => edytowaneKryterium = null">Anuluj</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xxl-5">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header dashboard-card-header">Rekomendowana ścieżka</div>
+                    <div class="card-body">
+                        @foreach (var rec in karta.Recommendations)
+                        {
+                            <div class="recommendation mb-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge @(rec.Rank == 1 ? "bg-success" : "bg-secondary")">@(rec.Rank == 1 ? "1. wybór" : "2. wybór")</span>
+                                    <h3 class="h6 mb-0">@rec.Name</h3>
+                                </div>
+                                <p class="small text-muted mb-2">@rec.Description</p>
+                                <div class="small fw-semibold">Dlaczego?</div>
+                                <ul class="small mb-2">
+                                    @foreach (var reason in rec.Reasons)
+                                    {
+                                        <li>@reason</li>
+                                    }
+                                </ul>
+                                <div class="small fw-semibold">Następne kroki</div>
+                                <ol class="small mb-2">
+                                    @foreach (var step in rec.NextSteps)
+                                    {
+                                        <li>@step</li>
+                                    }
+                                </ol>
+                                <div class="small fw-semibold">Mierniki skuteczności</div>
+                                <ul class="small mb-0">
+                                    @foreach (var metric in rec.Metrics)
+                                    {
+                                        <li>@metric</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                        @if (karta.Stage is PipelineStage.Oceniona && karta.Recommendations.Count > 0)
+                        {
+                            <button type="button" class="btn btn-sm btn-success"
+                                    @onclick="() => ZmienEtapAsync(PipelineStage.Rekomendowana, PrzyjecieRekomendacji())">
+                                Przyjmij rekomendację
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-0">
+            <div class="col-12 col-xxl-7">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header dashboard-card-header">Odbiorcy, partnerzy i inwestorzy</div>
+                    <div class="card-body">
+                        @if (karta.Sectors.Count > 0)
+                        {
+                            <div class="small mb-2">Rozpoznane sektory: @foreach (var sector in karta.Sectors)
+                            {
+                                <span class="badge bg-light text-dark border me-1">@sector</span>
+                            }</div>
+                        }
+                        @if (karta.RecipientMatches.Count == 0)
+                        {
+                            <div class="empty-panel">Brak dopasowań w <a href="/odbiorcy">katalogu odbiorców</a>.</div>
+                        }
+                        @foreach (var match in karta.RecipientMatches)
+                        {
+                            <div class="border rounded p-2 mb-2">
+                                <div class="d-flex justify-content-between gap-2 flex-wrap">
+                                    <div>
+                                        <span class="fw-semibold small">@match.Name</span>
+                                        <span class="badge bg-light text-dark border ms-1">@UiLabels.Odbiorca(match.Type)</span>
+                                        @if (match.IsExample)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1" title="Ogólny typ odbiorcy – uzupełnij katalog o konkretnych partnerów">PRZYKŁAD</span>
+                                        }
+                                    </div>
+                                    <span class="badge @UiLabels.WynikKlasa(match.Score)">dopasowanie @match.Score%</span>
+                                </div>
+                                <div class="small text-muted">@match.Description</div>
+                                <details class="small mt-1">
+                                    <summary>Dlaczego ten odbiorca?</summary>
+                                    <ul class="mb-1">
+                                        @foreach (var reason in match.Reasons)
+                                        {
+                                            <li>@reason</li>
+                                        }
+                                    </ul>
+                                </details>
+                                @if (kierowanyOdbiorca == match.RecipientId)
+                                {
+                                    <div class="d-flex gap-2 mt-2">
+                                        <input class="form-control form-control-sm" @bind="notatkaSkierowania"
+                                               placeholder="Notatka, np. termin spotkania, osoba kontaktowa po stronie odbiorcy" />
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="() => SkierujAsync(match.RecipientId)">Zapisz</button>
+                                        <button type="button" class="btn btn-sm btn-link" @onclick="() => kierowanyOdbiorca = null">Anuluj</button>
+                                    </div>
+                                }
+                                else if (karta.Stage is not (PipelineStage.Odrzucona or PipelineStage.Wdrozona))
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-1"
+                                            @onclick="() => { kierowanyOdbiorca = match.RecipientId; notatkaSkierowania = string.Empty; }">
+                                        Skieruj do odbiorcy
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xxl-5">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header dashboard-card-header">Instytucje z podobnym problemem</div>
+                    <div class="card-body">
+                        @if (karta.SimilarInstitutions.Count == 0)
+                        {
+                            <div class="small text-muted">
+                                W bazie nie ma jeszcze projektów o podobnym problemie z innych instytucji.
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="small text-muted">
+                                Te instytucje pracują nad podobnym problemem – to potencjalni partnerzy, odbiorcy
+                                albo źródło doświadczeń. Warto sprawdzić, czy nie dublujecie prac.
+                            </p>
+                            @foreach (var item in karta.SimilarInstitutions)
+                            {
+                                <div class="border rounded p-2 mb-2 small">
+                                    <div class="fw-semibold">@item.Institution</div>
+                                    <a href="/projekty/@item.ProjectId">@item.ProjectTitle</a>
+                                    <span class="text-muted">(podobieństwo @item.Similarity.ToString("0.00"))</span>
+                                </div>
+                            }
+                        }
+                        @if (karta.Referrals.Count > 0)
+                        {
+                            <hr />
+                            <div class="small fw-semibold mb-1">Skierowania</div>
+                            @foreach (var referral in karta.Referrals)
+                            {
+                                <div class="small">
+                                    @UiLabels.Data(referral.CreatedAt) → <strong>@referral.RecipientName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(referral.Note))
+                                    {
+                                        <span class="text-muted">– @referral.Note</span>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-0">
+            <div class="col-12 col-xxl-5">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header dashboard-card-header">Etap procesu i historia decyzji</div>
+                    <div class="card-body">
+                        <div class="pipeline-steps mb-2">
+                            @foreach (var step in Kroki)
+                            {
+                                <span class="pipeline-step @(step == karta.Stage ? "current" : (int)step < (int)karta.Stage && karta.Stage < PipelineStage.Odlozona ? "done" : "")">
+                                    @UiLabels.EtapProcesu(step)
+                                </span>
+                            }
+                        </div>
+                        <div class="small text-muted mb-2">@PipelineRules.Description(karta.Stage)</div>
+                        @if (karta.AllowedStages.Count > 0)
+                        {
+                            <input class="form-control form-control-sm mb-2" @bind="komentarzEtapu"
+                                   placeholder="Komentarz do decyzji (wymagany przy odrzuceniu lub odłożeniu)" maxlength="2000" />
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var next in karta.AllowedStages)
+                                {
+                                    <button type="button" class="btn btn-sm @(next is PipelineStage.Odrzucona or PipelineStage.Odlozona ? "btn-outline-danger" : "btn-outline-primary")"
+                                            @onclick="() => ZmienEtapAsync(next, komentarzEtapu)">
+                                        → @UiLabels.EtapProcesu(next)
+                                    </button>
+                                }
+                            </div>
+                        }
+                        <hr />
+                        @if (karta.Events.Count == 0)
+                        {
+                            <div class="small text-muted">Brak decyzji – projekt czeka na weryfikację.</div>
+                        }
+                        <ul class="timeline small mb-0">
+                            @foreach (var ev in karta.Events)
+                            {
+                                <li>
+                                    <span class="text-muted">@UiLabels.DataCzas(ev.CreatedAt)</span>
+                                    @if (ev.From == ev.To)
+                                    {
+                                        <strong>@UiLabels.EtapProcesu(ev.To)</strong>
+                                    }
+                                    else
+                                    {
+                                        <span>@UiLabels.EtapProcesu(ev.From) → <strong>@UiLabels.EtapProcesu(ev.To)</strong></span>
+                                    }
+                                    <span class="text-muted">(@ev.Actor)</span>
+                                    @if (!string.IsNullOrWhiteSpace(ev.Comment))
+                                    {
+                                        <div>@ev.Comment</div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                        @if (karta.History.Count > 1)
+                        {
+                            <details class="small mt-2">
+                                <summary>Historia ocen (@karta.History.Count)</summary>
+                                <table class="table table-sm mb-0">
+                                    <thead><tr><th>Data</th><th>Wynik</th><th>Pewność</th><th>Kto</th><th>Ścieżki</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var h in karta.History)
+                                        {
+                                            <tr><td>@UiLabels.DataCzas(h.CreatedAt)</td><td>@h.TotalScore.ToString("0.0")</td><td>@h.Confidence%</td><td>@h.Actor</td><td>@h.Paths</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </details>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xxl-7">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header dashboard-card-header">Profil innowacji</div>
+                    <div class="card-body">
+                        @if (profil is not null)
+                        {
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label form-label-sm mb-0">Instytucja</label>
+                                    <input class="form-control form-control-sm" @bind="profil.Institution" maxlength="500" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label form-label-sm mb-0">Typ instytucji</label>
+                                    <select class="form-select form-select-sm" @bind="profil.InstitutionType">
+                                        @foreach (var type in Enum.GetValues<InstitutionType>())
+                                        {
+                                            <option value="@type">@UiLabels.Instytucja(type)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label form-label-sm mb-0">Województwo</label>
+                                    <input class="form-control form-control-sm" @bind="profil.Region" maxlength="100" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm mb-0">Rodzaj innowacji</label>
+                                    <select class="form-select form-select-sm" @bind="profil.InnovationKind">
+                                        @foreach (var kind in Enum.GetValues<InnovationKind>())
+                                        {
+                                            <option value="@kind">@UiLabels.Rodzaj(kind)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm mb-0">Etap rozwoju</label>
+                                    <select class="form-select form-select-sm" @bind="profil.Stage">
+                                        @foreach (var stage in Enum.GetValues<ProjectStatus>())
+                                        {
+                                            <option value="@stage">@UiLabels.EtapRozwoju(stage)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm mb-0">Twórcy</label>
+                                    <input class="form-control form-control-sm" @bind="profil.Creators" maxlength="1000" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label form-label-sm mb-0">Problem</label>
+                                    <textarea class="form-control form-control-sm" rows="2" @bind="profil.Problem" maxlength="2000"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label form-label-sm mb-0">Rozwiązanie</label>
+                                    <textarea class="form-control form-control-sm" rows="2" @bind="profil.Solution" maxlength="2000"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label form-label-sm mb-0">E-mail do twórcy</label>
+                                    <input type="email" class="form-control form-control-sm" @bind="profil.ContactEmail" maxlength="254" />
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <div class="form-check">
+                                        <input id="zgoda-profil" class="form-check-input" type="checkbox" @bind="profil.ContactConsent" />
+                                        <label class="form-check-label small" for="zgoda-profil">Twórca zgodził się na kontakt</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-primary mt-2" @onclick="ZapiszProfilAsync">Zapisz profil i przelicz ocenę</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private static readonly PipelineStage[] Kroki =
+    [
+        PipelineStage.WOcenie, PipelineStage.Oceniona, PipelineStage.Rekomendowana,
+        PipelineStage.Skierowana, PipelineStage.Pilotaz, PipelineStage.Wdrozona
+    ];
+
+    [Parameter] public int ProjectId { get; set; }
+
+    private ProjectAssessmentCard? karta;
+    private ProjectProfile? profil;
+    private string komunikat = string.Empty;
+    private bool komunikatBlad;
+    private AssessmentCriterion? edytowaneKryterium;
+    private int ocenaEksperta;
+    private string komentarzEksperta = string.Empty;
+    private string komentarzEtapu = string.Empty;
+    private int? kierowanyOdbiorca;
+    private string notatkaSkierowania = string.Empty;
+
+    protected override async Task OnParametersSetAsync() => await OdswiezAsync();
+
+    private async Task OdswiezAsync()
+    {
+        karta = await Assessment.GetCardAsync(ProjectId);
+        if (karta is not null)
+        {
+            var p = karta.Profile;
+            profil = new ProjectProfile
+            {
+                Institution = p.Institution,
+                InstitutionType = p.InstitutionType,
+                InnovationKind = p.InnovationKind,
+                Stage = p.Stage,
+                Region = p.Region,
+                Creators = p.Creators,
+                Problem = p.Problem,
+                Solution = p.Solution,
+                ContactEmail = p.ContactEmail,
+                ContactConsent = p.ContactConsent
+            };
+        }
+    }
+
+    private void EdytujKryterium(CriterionCardItem item)
+    {
+        edytowaneKryterium = item.Criterion;
+        ocenaEksperta = item.FinalScore;
+        komentarzEksperta = item.ExpertComment ?? string.Empty;
+    }
+
+    private async Task ZapiszOceneAsync()
+    {
+        if (edytowaneKryterium is not { } criterion)
+        {
+            return;
+        }
+
+        Pokaz(await Assessment.SetExpertScoreAsync(ProjectId, criterion, ocenaEksperta, komentarzEksperta));
+        if (!komunikatBlad)
+        {
+            edytowaneKryterium = null;
+        }
+
+        await OdswiezAsync();
+    }
+
+    private async Task PrzywrocOceneAsync()
+    {
+        if (edytowaneKryterium is not { } criterion)
+        {
+            return;
+        }
+
+        Pokaz(await Assessment.SetExpertScoreAsync(ProjectId, criterion, null, string.Empty));
+        edytowaneKryterium = null;
+        await OdswiezAsync();
+    }
+
+    private string PrzyjecieRekomendacji() =>
+        "Przyjęto ścieżkę: " + string.Join(", ", karta!.Recommendations.Select(x => x.Name));
+
+    private async Task ZmienEtapAsync(PipelineStage stage, string comment)
+    {
+        Pokaz(await Pipeline.ChangeStageAsync(ProjectId, stage, comment));
+        if (!komunikatBlad)
+        {
+            komentarzEtapu = string.Empty;
+        }
+
+        await OdswiezAsync();
+    }
+
+    private async Task SkierujAsync(int recipientId)
+    {
+        Pokaz(await Pipeline.ReferAsync(ProjectId, recipientId, notatkaSkierowania));
+        kierowanyOdbiorca = null;
+        await OdswiezAsync();
+    }
+
+    private async Task ZapiszProfilAsync()
+    {
+        if (profil is null)
+        {
+            return;
+        }
+
+        Pokaz(await Assessment.UpdateProfileAsync(ProjectId, profil));
+        await OdswiezAsync();
+    }
+
+    private void Pokaz(OperationResult result)
+    {
+        komunikat = result.Message;
+        komunikatBlad = !result.Success;
+    }
+}

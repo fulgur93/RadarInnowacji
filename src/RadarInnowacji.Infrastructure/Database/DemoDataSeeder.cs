@@ -218,15 +218,36 @@ public sealed class DemoDataSeeder(RadarDbContext db) : IDemoDataService
             ("System monitorowania gleby", "Czujniki, repozytorium i pilotaż rolniczy.", [0, 3], [25, 26, 27])
         ];
 
+        // Profil innowacji (Etap 9): instytucja, typ, rodzaj, etap i region – wartości przykładowe.
+        (string Institution, InstitutionType Type, InnovationKind Kind, ProjectStatus Stage, string Region)[] profiles =
+        [
+            ("AGH", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.Prototype, "małopolskie"),
+            ("Politechnika Gdańska", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.Prototype, "pomorskie"),
+            ("Uniwersytet Jagielloński", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.InProgress, "małopolskie"),
+            ("Politechnika Warszawska", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.Prototype, "mazowieckie"),
+            ("UMK", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.Deployed, "kujawsko-pomorskie"),
+            ("Uniwersytet Kazimierza Wielkiego", InstitutionType.Uczelnia, InnovationKind.Edukacyjna, ProjectStatus.Deployed, "kujawsko-pomorskie"),
+            ("AGH", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.Prototype, "małopolskie"),
+            ("Politechnika Warszawska", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.Concept, "mazowieckie"),
+            ("Politechnika Gdańska", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.Prototype, "pomorskie"),
+            ("AGH", InstitutionType.Uczelnia, InnovationKind.Technologiczna, ProjectStatus.InProgress, "małopolskie")
+        ];
+
         return specs.Select((spec, index) =>
         {
+            var profile = profiles[index];
             var project = new InnovationProject
             {
                 Title = spec.Title,
                 Description = spec.Description,
                 Problem = "Przykładowy problem opisany w danych demonstracyjnych.",
                 ProposedSolution = "Przykładowe rozwiązanie opisane w danych demonstracyjnych.",
-                ProjectStatus = (ProjectStatus)(index % 5),
+                ProjectStatus = profile.Stage,
+                Institution = profile.Institution,
+                InstitutionType = profile.Type,
+                InnovationKind = profile.Kind,
+                Region = profile.Region,
+                Creators = discoveries[spec.DiscoveryNumbers[0] - 1].Author + " (DEMO)",
                 FirstDiscoveredAt = now.AddDays(-Math.Max(1, AgeDays[spec.DiscoveryNumbers[0] - 1])),
                 EarliestKnownDate = now.AddDays(-Math.Max(30, AgeDays[spec.DiscoveryNumbers[0] - 1] + 60)),
                 LastActivityAt = now.AddDays(-(index + 1)),
@@ -269,13 +290,28 @@ public sealed class DemoDataSeeder(RadarDbContext db) : IDemoDataService
             IsDemo = true
         }).ToList();
 
+    /// <summary>Przykładowe wyniki AI (DEMO) – zawierają pola używane przez kartę oceny.</summary>
+    private static readonly Dictionary<int, (string Type, string Novelty)> DemoAiResults = new()
+    {
+        [3] = ("technologiczna", "Wskazywanie lekarzowi podejrzanych obszarów obrazu zamiast samej klasyfikacji (dane demonstracyjne)."),
+        [6] = ("edukacyjna", "Symulacja mechaniki działająca w przeglądarce, bez instalacji, z materiałami do lekcji (dane demonstracyjne)."),
+        [9] = ("technologiczna", "Lekka konstrukcja egzoszkieletu do rehabilitacji domowej (dane demonstracyjne)."),
+        [12] = ("technologiczna", "Otwarty model wspomagający analizę obrazów diagnostycznych (dane demonstracyjne).")
+    };
+
     private static List<AiAnalysisRecord> CreateAiAnalyses(List<Discovery> discoveries, DateTime now) =>
-        new[] { 3, 6, 9, 12 }.Select(number => new AiAnalysisRecord
+        DemoAiResults.Keys.Select(number => new AiAnalysisRecord
         {
             Discovery = discoveries[number - 1],
             Model = "qwen3:1.7b (DEMO)",
             AnalyzedAt = now.AddHours(-number),
-            ResultJson = "{\"isPotentialInnovation\":true,\"confidence\":78}",
+            ResultJson = JsonSerializer.Serialize(new
+            {
+                isPotentialInnovation = true,
+                confidence = 78,
+                innovationType = DemoAiResults[number].Type,
+                noveltyDescription = DemoAiResults[number].Novelty
+            }),
             Confidence = 78,
             Reason = "Przykładowe uzasadnienie wygenerowane dla danych demonstracyjnych.",
             PromptVersion = "v1-demo",

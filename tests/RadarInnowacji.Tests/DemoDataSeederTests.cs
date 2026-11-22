@@ -26,7 +26,9 @@ public class DemoDataSeederTests
         Assert.Equal(10, await db.ScanHistory.CountAsync(x => x.IsDemo));
         Assert.Equal(4, await db.AiAnalyses.CountAsync(x => x.IsDemo));
 
-        Assert.Equal(Enum.GetValues<RadarKind>().Length, await db.Sources.Select(x => x.Radar).Distinct().CountAsync());
+        // Zgłoszenia instytucji nie są radarem skanującym – dane demo obejmują cztery radary.
+        Assert.Equal(Enum.GetValues<RadarKind>().Count(x => x != RadarKind.Zgloszenia),
+            await db.Sources.Select(x => x.Radar).Distinct().CountAsync());
         Assert.Equal(9, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == RadarKind.Uczelnia));
         Assert.Equal(9, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == RadarKind.Repozytorium));
         Assert.Equal(9, await db.Discoveries.CountAsync(x => x.IsDemo && x.Source.Radar == RadarKind.Wiadomosci));

@@ -27,6 +27,10 @@ public class PagesSmokeTests : IClassFixture<RadarWebApplicationFactory>
     [InlineData("/historia", "Historia skanowania")]
     [InlineData("/kategorie", "Kategorie i trendy")]
     [InlineData("/ustawienia", "Ustawienia")]
+    [InlineData("/zglos", "Zgłoś innowację")]
+    [InlineData("/lejek", "Lejek innowacji")]
+    [InlineData("/odbiorcy", "Odbiorcy i partnerzy")]
+    [InlineData("/metodyka", "Metodyka oceny")]
     public async Task Strona_Zwraca200IPolskiNaglowek(string route, string heading)
     {
         var client = _factory.CreateClient();
@@ -72,6 +76,34 @@ public class PagesSmokeTests : IClassFixture<RadarWebApplicationFactory>
             db.Sources.Remove(db.Sources.Single(x => x.Id == source.Id));
             await db.SaveChangesAsync();
         }
+    }
+
+    [Fact]
+    public async Task Zgloszenie_PokazujeKarteOcenyIRekomendacjeOrazTrafiaDoEksportu()
+    {
+        var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
+        var submissions = scope.ServiceProvider.GetRequiredService<ISubmissionService>();
+        var form = RadarInnowacji.Infrastructure.Services.SubmissionService.DemoExample();
+        form.Title = $"Test integracyjny {Guid.NewGuid():N}";
+        var result = await submissions.SubmitAsync(form);
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+
+        var page = WebUtility.HtmlDecode(await client.GetStringAsync($"/projekty/{result.ProjectId}"));
+        var csv = await client.GetAsync("/eksport/projekty.csv");
+        var csvText = await csv.Content.ReadAsStringAsync();
+        var json = await client.GetStringAsync("/eksport/projekty.json");
+
+        Assert.Contains("Karta oceny", page);
+        Assert.Contains("Rekomendowana ścieżka", page);
+        Assert.Contains("Mierniki skuteczności", page);
+        Assert.Contains("Odbiorcy, partnerzy i inwestorzy", page);
+        Assert.Equal(HttpStatusCode.OK, csv.StatusCode);
+        Assert.Equal("text/csv", csv.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Id;Tytuł;Instytucja", csvText);
+        Assert.Contains(form.Title, csvText);
+        Assert.Contains(form.Title, json);
+        Assert.Contains("\"Zgloszona\"", json);
     }
 
     [Fact]

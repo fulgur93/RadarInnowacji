@@ -187,6 +187,39 @@ public sealed class ProjectService(
         return await FindSimilarAsync(project, proposals, cancellationToken, Math.Clamp(limit, 1, 30));
     }
 
+    public async Task<IReadOnlyList<SimilarProjectItem>> FindSimilarToTextAsync(
+        string title,
+        string description,
+        int limit = 5,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(description))
+        {
+            return Array.Empty<SimilarProjectItem>();
+        }
+
+        // Projekt tymczasowy (Id = 0) nie jest zapisywany – służy tylko do porównania tekstu.
+        var draft = new InnovationProject
+        {
+            Title = title.Trim(),
+            Description = description.Trim()
+        };
+        return await FindSimilarAsync(
+            draft, Array.Empty<ProjectMergeProposal>(), cancellationToken, Math.Clamp(limit, 1, 30), related: true);
+    }
+
+    public async Task<IReadOnlyList<SimilarProjectItem>> GetRelatedProjectsAsync(
+        int projectId,
+        int limit = 8,
+        CancellationToken cancellationToken = default)
+    {
+        var project = await LoadProjectAsync(projectId, cancellationToken);
+        return project is null
+            ? Array.Empty<SimilarProjectItem>()
+            : await FindSimilarAsync(
+                project, Array.Empty<ProjectMergeProposal>(), cancellationToken, Math.Clamp(limit, 1, 30), related: true);
+    }
+
     public async Task<DuplicateDetectionResult> DetectDuplicatesAsync(CancellationToken cancellationToken = default)
     {
         if (!options.Value.Projects.Enabled)
@@ -594,7 +627,8 @@ public sealed class ProjectService(
         InnovationProject project,
         IReadOnlyList<ProjectMergeProposal> proposals,
         CancellationToken cancellationToken,
-        int? limit = null)
+        int? limit = null,
+        bool related = false)
     {
         var max = limit ?? Math.Clamp(options.Value.Projects.SimilarProjectsLimit, 1, 30);
         var candidates = await LoadActiveProjectsAsync(
@@ -610,7 +644,9 @@ public sealed class ProjectService(
             var similarity = vector is not null && vectors.TryGetValue(candidate.Id, out var other)
                 ? EmbeddingMath.CosineSimilarity(vector, other)
                 : TextScore(project, candidate);
-            if (similarity < minimum)
+            var textScore = related && similarity < minimum ? TextScore(project, candidate) : 0;
+            if (similarity < minimum &&
+                !(related && similarity >= RelatedMinimumSimilarity && textScore >= RelatedMinimumTextScore))
             {
                 continue;
             }
@@ -629,6 +665,11 @@ public sealed class ProjectService(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             var reasons = new List<string> { $"podobieństwo wektorów {similarity:0.00}" };
+            if (textScore > 0)
+            {
+                reasons.Add($"wspólne słownictwo {textScore:0.00}");
+            }
+
             if (sharedCategories.Count > 0)
             {
                 reasons.Add("wspólne kategorie: " + string.Join(", ", sharedCategories.Take(3)));
@@ -666,6 +707,14 @@ public sealed class ProjectService(
             .Take(max)
             .ToList();
     }
+
+    /// <summary>
+    /// Tryb „powiązanych projektów” (podobny problem, nie duplikat): poza progiem wektorów przyjmuje
+    /// pary o niższym podobieństwie wektorów, jeśli mają też wspólne słownictwo. Lokalny embedder
+    /// hashingowy ma szum tła ok. 0,2–0,27, więc samo obniżenie progu wektorów dawałoby fałszywe trafienia.
+    /// </summary>
+    public const double RelatedMinimumSimilarity = 0.30;
+    public const double RelatedMinimumTextScore = 0.10;
 
     private static double TextScore(InnovationProject first, InnovationProject second) =>
         Math.Max(0,

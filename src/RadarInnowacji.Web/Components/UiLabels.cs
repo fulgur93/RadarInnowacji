@@ -1,5 +1,6 @@
 using System.Globalization;
 using RadarInnowacji.Core.Enums;
+using RadarInnowacji.Infrastructure.Assessment;
 
 namespace RadarInnowacji.Web.Components;
 
@@ -13,6 +14,7 @@ public static class UiLabels
         RadarKind.Repozytorium => "Radar repozytoriów",
         RadarKind.Wiadomosci => "Radar wiadomości",
         RadarKind.Crowdfunding => "Radar portali crowdfundingowych",
+        RadarKind.Zgloszenia => "Zgłoszenia instytucji",
         _ => radar.ToString()
     };
 
@@ -68,6 +70,69 @@ public static class UiLabels
         SourceType.Manual => "Wpis ręczny",
         SourceType.Demo => "Dane demonstracyjne",
         _ => type.ToString()
+    };
+
+    public static string Instytucja(InstitutionType type) => type switch
+    {
+        InstitutionType.Nieznany => "Nieznany",
+        InstitutionType.Szkola => "Szkoła",
+        InstitutionType.Uczelnia => "Uczelnia",
+        InstitutionType.Samorzad => "Samorząd (JST)",
+        InstitutionType.InstytucjaPubliczna => "Inna instytucja publiczna",
+        InstitutionType.OrganizacjaPozarzadowa => "Organizacja pozarządowa",
+        InstitutionType.Firma => "Firma",
+        InstitutionType.Inna => "Inna",
+        _ => type.ToString()
+    };
+
+    public static string Rodzaj(InnovationKind kind) => kind switch
+    {
+        InnovationKind.Nieokreslona => "Nieokreślona",
+        InnovationKind.Technologiczna => "Technologiczna",
+        InnovationKind.Organizacyjna => "Organizacyjna",
+        InnovationKind.Edukacyjna => "Edukacyjna",
+        InnovationKind.Spoleczna => "Społeczna",
+        InnovationKind.Procesowa => "Procesowa",
+        _ => kind.ToString()
+    };
+
+    /// <summary>Etap rozwoju w języku zgłoszeń (Etap 9).</summary>
+    public static string EtapRozwoju(ProjectStatus status) => status switch
+    {
+        ProjectStatus.Unknown => "Nieznany",
+        ProjectStatus.Concept => "Pomysł",
+        ProjectStatus.InProgress => "W realizacji",
+        ProjectStatus.Prototype => "Prototyp",
+        ProjectStatus.Deployed => "Wdrożone w macierzystej instytucji",
+        _ => status.ToString()
+    };
+
+    public static string EtapProcesu(PipelineStage stage) => PipelineRules.Name(stage);
+
+    public static string Sciezka(DevelopmentPath path) => DevelopmentPathCatalog.Get(path).Name;
+
+    public static string Odbiorca(RecipientType type) => type switch
+    {
+        RecipientType.Szkoly => "Szkoły",
+        RecipientType.Uczelnie => "Uczelnie",
+        RecipientType.Samorzady => "Samorządy",
+        RecipientType.InstytucjePubliczne => "Instytucje publiczne",
+        RecipientType.Firmy => "Firmy",
+        RecipientType.Inwestorzy => "Inwestorzy",
+        RecipientType.ProgramyWsparcia => "Programy wsparcia",
+        RecipientType.Akceleratory => "Akceleratory",
+        RecipientType.OrganizacjePozarzadowe => "Organizacje pozarządowe",
+        _ => type.ToString()
+    };
+
+    /// <summary>Klasa koloru dla wyniku oceny 0–100.</summary>
+    public static string WynikKlasa(double? score) => score switch
+    {
+        null => "bg-secondary",
+        >= 65 => "bg-success",
+        >= 45 => "bg-primary",
+        >= 30 => "bg-warning text-dark",
+        _ => "bg-secondary"
     };
 
     public static string Data(DateTime? value) => value is null

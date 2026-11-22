@@ -1,0 +1,246 @@
+@page "/lejek"
+@rendermode InteractiveServer
+@inject IPipelineService Pipeline
+@inject IAssessmentService Assessment
+
+<PageTitle>Lejek innowacji — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Lejek innowacji</h1>
+        <p class="page-subtitle">
+            Co dzieje się z innowacjami po ich zidentyfikowaniu: ocena, rekomendacja, skierowanie do odbiorcy, pilotaż i wdrożenie.
+        </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-sm btn-primary" href="/zglos">Zgłoś innowację</a>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OcenAsync" disabled="@ocenianie">
+            @(ocenianie ? "Ocenianie…" : "Oceń projekty bez aktualnej oceny")
+        </button>
+        <a class="btn btn-sm btn-outline-secondary" href="/eksport/projekty.csv" download>Eksport CSV</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/eksport/projekty.json" target="_blank" rel="noopener">Eksport JSON</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(komunikat))
+{
+    <div class="alert alert-success py-2 small">@komunikat</div>
+}
+
+@if (model is not null)
+{
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-lg-3"><div class="card dashboard-card"><div class="card-body">
+            <div class="small text-muted">Projekty</div><div class="h4 mb-0">@model.TotalProjects</div></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card dashboard-card"><div class="card-body">
+            <div class="small text-muted">Ocenione</div><div class="h4 mb-0">@model.AssessedProjects</div></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card dashboard-card"><div class="card-body">
+            <div class="small text-muted">Zgłoszone przez instytucje</div><div class="h4 mb-0">@Licz(PipelineStage.Zgloszona)</div></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card dashboard-card"><div class="card-body">
+            <div class="small text-muted">Skierowania do odbiorców</div><div class="h4 mb-0">@model.Referrals</div></div></div></div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-xl-6">
+            <div class="card dashboard-card h-100">
+                <div class="card-header dashboard-card-header">Etapy procesu</div>
+                <div class="card-body">
+                    @{ var maxEtap = Math.Max(1, model.StageCounts.Values.DefaultIfEmpty(0).Max()); }
+                    @foreach (var (stage, count) in model.StageCounts)
+                    {
+                        <button type="button" class="funnel-bar btn btn-link p-0 w-100 text-decoration-none text-reset"
+                                @onclick="() => FiltrujEtap(stage)">
+                            <span class="funnel-bar-label text-start @(filtr.Stage == stage ? "fw-bold" : "")">@UiLabels.EtapProcesu(stage)</span>
+                            <span class="funnel-bar-track"><span class="funnel-bar-fill d-block" style="width:@(100 * count / maxEtap)%"></span></span>
+                            <span class="small" style="width:2.5rem">@count</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-6">
+            <div class="card dashboard-card h-100">
+                <div class="card-header dashboard-card-header">Rekomendowane ścieżki (pierwszy wybór)</div>
+                <div class="card-body">
+                    @{ var maxSciezka = Math.Max(1, model.PathCounts.Values.DefaultIfEmpty(0).Max()); }
+                    @foreach (var (path, count) in model.PathCounts)
+                    {
+                        <button type="button" class="funnel-bar btn btn-link p-0 w-100 text-decoration-none text-reset"
+                                @onclick="() => FiltrujSciezke(path)">
+                            <span class="funnel-bar-label text-start @(filtr.Path == path ? "fw-bold" : "")">@UiLabels.Sciezka(path)</span>
+                            <span class="funnel-bar-track"><span class="funnel-bar-fill d-block" style="width:@(100 * count / maxSciezka)%"></span></span>
+                            <span class="small" style="width:2.5rem">@count</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card dashboard-card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label form-label-sm">Szukaj</label>
+                <input class="form-control form-control-sm" @bind="filtr.Text" placeholder="tytuł lub instytucja" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Etap procesu</label>
+                <select class="form-select form-select-sm" @bind="etap">
+                    <option value="">Wszystkie</option>
+                    @foreach (var stage in Enum.GetValues<PipelineStage>())
+                    {
+                        <option value="@stage">@UiLabels.EtapProcesu(stage)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Ścieżka</label>
+                <select class="form-select form-select-sm" @bind="sciezka">
+                    <option value="">Wszystkie</option>
+                    @foreach (var path in Enum.GetValues<DevelopmentPath>())
+                    {
+                        <option value="@path">@UiLabels.Sciezka(path)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Rodzaj</label>
+                <select class="form-select form-select-sm" @bind="rodzaj">
+                    <option value="">Wszystkie</option>
+                    @foreach (var kind in Enum.GetValues<InnovationKind>())
+                    {
+                        <option value="@kind">@UiLabels.Rodzaj(kind)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label form-label-sm">Min. wynik</label>
+                <input type="number" min="0" max="100" class="form-control form-control-sm" @bind="filtr.MinScore" />
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-primary" @onclick="ZastosujAsync">Filtruj</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="WyczyscAsync">Wyczyść</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (model is not null)
+{
+    <div class="card dashboard-card">
+        <div class="card-header dashboard-card-header">Projekty (@model.Items.Count)</div>
+        <div class="card-body p-0">
+            @if (model.Items.Count == 0)
+            {
+                <div class="empty-panel m-3">
+                    Brak projektów spełniających kryteria. Zgłoś innowację, załaduj przykłady w „Źródłach danych”
+                    albo kliknij „Oceń projekty bez aktualnej oceny”.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead>
+                            <tr><th>Wynik</th><th>Projekt</th><th>Instytucja</th><th>Rodzaj</th><th>Etap rozwoju</th><th>Ścieżka</th><th>Etap procesu</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in model.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (item.TotalScore is { } score)
+                                        {
+                                            <span class="badge @UiLabels.WynikKlasa(score)">@score.ToString("0")</span>
+                                            <div class="small text-muted">pewność @item.Confidence%</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-dark border">brak</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a href="/projekty/@item.ProjectId#ocena">@item.Title</a>
+                                        @if (item.IsDemo)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1">DEMO</span>
+                                        }
+                                        <div class="small text-muted">@item.SourceCount @(item.SourceCount == 1 ? "źródło" : "źródła")</div>
+                                    </td>
+                                    <td class="small">
+                                        @(item.Institution ?? "—")
+                                        <div class="text-muted">@UiLabels.Instytucja(item.InstitutionType)</div>
+                                    </td>
+                                    <td class="small">@UiLabels.Rodzaj(item.Kind)</td>
+                                    <td class="small">@UiLabels.EtapRozwoju(item.Stage)</td>
+                                    <td class="small">@string.Join(", ", item.Paths.Select(UiLabels.Sciezka))</td>
+                                    <td><span class="badge bg-dark">@UiLabels.EtapProcesu(item.PipelineStage)</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private FunnelModel? model;
+    private FunnelFilter filtr = new();
+    private string etap = string.Empty;
+    private string sciezka = string.Empty;
+    private string rodzaj = string.Empty;
+    private bool ocenianie;
+    private string komunikat = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await ZaladujAsync();
+
+    private int Licz(PipelineStage stage) => model?.StageCounts.GetValueOrDefault(stage) ?? 0;
+
+    private async Task ZaladujAsync()
+    {
+        filtr.Stage = Enum.TryParse<PipelineStage>(etap, out var s) ? s : null;
+        filtr.Path = Enum.TryParse<DevelopmentPath>(sciezka, out var p) ? p : null;
+        filtr.Kind = Enum.TryParse<InnovationKind>(rodzaj, out var k) ? k : null;
+        model = await Pipeline.GetFunnelAsync(filtr);
+    }
+
+    private async Task ZastosujAsync() => await ZaladujAsync();
+
+    private async Task WyczyscAsync()
+    {
+        filtr = new FunnelFilter();
+        etap = sciezka = rodzaj = string.Empty;
+        await ZaladujAsync();
+    }
+
+    private async Task FiltrujEtap(PipelineStage stage)
+    {
+        etap = etap == stage.ToString() ? string.Empty : stage.ToString();
+        await ZaladujAsync();
+    }
+
+    private async Task FiltrujSciezke(DevelopmentPath path)
+    {
+        sciezka = sciezka == path.ToString() ? string.Empty : path.ToString();
+        await ZaladujAsync();
+    }
+
+    private async Task OcenAsync()
+    {
+        ocenianie = true;
+        try
+        {
+            var changed = await Assessment.AssessPendingAsync();
+            komunikat = $"Zaktualizowano oceny: {changed}. Projekty bez zmian nie tworzą nowych ocen.";
+            await ZaladujAsync();
+        }
+        finally
+        {
+            ocenianie = false;
+        }
+    }
+}

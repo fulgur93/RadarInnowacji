@@ -25,6 +25,13 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
     public DbSet<CategoryHistory> CategoryHistories => Set<CategoryHistory>();
     public DbSet<ProjectMergeProposal> ProjectMergeProposals => Set<ProjectMergeProposal>();
     public DbSet<ProjectMergeHistory> ProjectMergeHistories => Set<ProjectMergeHistory>();
+    public DbSet<ProjectAssessment> ProjectAssessments => Set<ProjectAssessment>();
+    public DbSet<AssessmentCriterionScore> AssessmentCriterionScores => Set<AssessmentCriterionScore>();
+    public DbSet<CriterionOverride> CriterionOverrides => Set<CriterionOverride>();
+    public DbSet<ProjectRecommendation> ProjectRecommendations => Set<ProjectRecommendation>();
+    public DbSet<Recipient> Recipients => Set<Recipient>();
+    public DbSet<ProjectReferral> ProjectReferrals => Set<ProjectReferral>();
+    public DbSet<ProjectPipelineEvent> ProjectPipelineEvents => Set<ProjectPipelineEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -105,6 +112,11 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
             entity.HasIndex(x => x.FreshnessScore);
             entity.HasIndex(x => x.FirstDiscoveredAt);
             entity.HasIndex(x => x.MergedIntoProjectId);
+            entity.HasIndex(x => x.PipelineStage);
+            entity.Property(x => x.Institution).HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Region).HasMaxLength(100);
+            entity.Property(x => x.Creators).HasMaxLength(1000);
+            entity.Property(x => x.ContactEmail).HasMaxLength(254);
             entity.HasOne(x => x.MergedInto)
                 .WithMany()
                 .HasForeignKey(x => x.MergedIntoProjectId)
@@ -253,6 +265,96 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
             entity.Property(x => x.Actor).IsRequired().HasMaxLength(50);
             entity.HasIndex(x => x.ChangedAt);
             entity.HasIndex(x => x.TargetProjectId);
+        });
+
+        modelBuilder.Entity<ProjectAssessment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.InputHash).IsRequired().HasMaxLength(64);
+            entity.Property(x => x.Actor).IsRequired().HasMaxLength(50);
+            entity.HasOne(x => x.Project)
+                .WithMany(x => x.Assessments)
+                .HasForeignKey(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.InnovationProjectId, x.IsCurrent });
+            entity.HasIndex(x => x.TotalScore);
+        });
+
+        modelBuilder.Entity<AssessmentCriterionScore>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Justification).IsRequired().HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.Property(x => x.ExpertComment).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.HasOne(x => x.Assessment)
+                .WithMany(x => x.Criteria)
+                .HasForeignKey(x => x.ProjectAssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.ProjectAssessmentId, x.Criterion }).IsUnique();
+        });
+
+        modelBuilder.Entity<CriterionOverride>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Comment).IsRequired().HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.Property(x => x.Author).IsRequired().HasMaxLength(100);
+            entity.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.InnovationProjectId, x.Criterion, x.IsActive });
+        });
+
+        modelBuilder.Entity<ProjectRecommendation>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Justification).IsRequired().HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.HasOne(x => x.Assessment)
+                .WithMany(x => x.Recommendations)
+                .HasForeignKey(x => x.ProjectAssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.Path);
+        });
+
+        modelBuilder.Entity<Recipient>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Description).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.Property(x => x.Sectors).HasMaxLength(500);
+            entity.Property(x => x.Keywords).HasMaxLength(1000);
+            entity.Property(x => x.Paths).HasMaxLength(500);
+            entity.Property(x => x.Region).HasMaxLength(100);
+            entity.Property(x => x.Website).HasMaxLength(ContentLimits.MaxSourceUrlLength);
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => x.IsActive);
+        });
+
+        modelBuilder.Entity<ProjectReferral>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Note).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.Property(x => x.Actor).IsRequired().HasMaxLength(100);
+            entity.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Recipient)
+                .WithMany()
+                .HasForeignKey(x => x.RecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.InnovationProjectId);
+        });
+
+        modelBuilder.Entity<ProjectPipelineEvent>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Comment).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.Property(x => x.Actor).IsRequired().HasMaxLength(100);
+            entity.HasOne(x => x.Project)
+                .WithMany(x => x.PipelineEvents)
+                .HasForeignKey(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.InnovationProjectId, x.CreatedAt });
         });
     }
 }

@@ -241,8 +241,23 @@ body {
 }
 
 .activity-chart {
+    display: block;
     width: 100%;
-    height: 180px;
+    height: auto;
+    max-height: 260px;
+}
+
+.chart-bar {
+    fill: #2f6fed;
+}
+
+.chart-bar:hover {
+    fill: #1f56c8;
+}
+
+.chart-axis-label {
+    fill: #6b7a90;
+    font-size: 11px;
 }
 
 .chart-grid-line {
@@ -259,7 +274,16 @@ body {
     color: #8796aa;
     font-size: 0.85rem;
     text-align: center;
-    margin: -3.5rem 0 3rem;
+}
+
+.chart-empty-overlay {
+    margin: -8rem 0 6rem;
+}
+
+.chart-summary {
+    color: #6b7a90;
+    font-size: 0.8rem;
+    margin: 0.5rem 0 0;
 }
 
 .status-row {
@@ -326,7 +350,8 @@ body {
     border-bottom-color: #e3e9f2;
 }
 
-.app-content a {
+/* Przyciski-linki (a.btn) zachowują kolory Bootstrapa – inaczej np. btn-primary ma niebieski tekst na niebieskim tle. */
+.app-content a:not(.btn) {
     color: var(--radar-accent);
 }
 
@@ -361,4 +386,103 @@ body {
         padding-left: 1rem;
         padding-right: 1rem;
     }
+}
+
+/* Etap 9 – ocena, rekomendacje, lejek */
+.assessment-score {
+    font-size: 2rem;
+    min-width: 4.5rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 0.8rem;
+}
+
+.assessment-table td {
+    vertical-align: top;
+}
+
+.signal-list {
+    padding-left: 1rem;
+    color: #42526b;
+}
+
+.score-dots {
+    display: inline-flex;
+    gap: 3px;
+}
+
+.score-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #d8e0ea;
+}
+
+.score-dot.on {
+    background: #2f6fde;
+}
+
+.recommendation + .recommendation {
+    border-top: 1px solid #e6ebf2;
+    padding-top: 0.8rem;
+}
+
+.pipeline-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.pipeline-step {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #5b6b82;
+}
+
+.pipeline-step.done {
+    background: #d6eadb;
+    color: #22653a;
+}
+
+.pipeline-step.current {
+    background: #2f6fde;
+    color: #fff;
+    font-weight: 600;
+}
+
+.timeline {
+    list-style: none;
+    padding-left: 0;
+}
+
+.timeline li {
+    border-left: 2px solid #d8e0ea;
+    padding: 0 0 0.5rem 0.6rem;
+}
+
+.funnel-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+
+.funnel-bar-label {
+    width: 11rem;
+    font-size: 0.8rem;
+}
+
+.funnel-bar-track {
+    flex: 1;
+    background: #eef2f7;
+    border-radius: 4px;
+    height: 0.9rem;
+}
+
+.funnel-bar-fill {
+    background: #2f6fde;
+    border-radius: 4px;
+    height: 100%;
+    min-width: 2px;
 }

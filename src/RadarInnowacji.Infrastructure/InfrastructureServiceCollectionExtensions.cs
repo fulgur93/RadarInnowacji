@@ -42,6 +42,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ICategorizationService, CategorizationService>();
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<ITrendService, TrendService>();
+        services.AddScoped<IAssessmentService, AssessmentService>();
+        services.AddScoped<ISubmissionService, SubmissionService>();
+        services.AddScoped<IPipelineService, PipelineService>();
+        services.AddScoped<IRecipientService, RecipientService>();
 
         services.AddHttpClient("RadarSources", client =>
         {

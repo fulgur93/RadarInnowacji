@@ -1,0 +1,243 @@
+RADAR INNOWACJI – INSTRUKCJA UŻYCIA
+====================================
+
+Radar Innowacji automatycznie wyszukuje potencjalne innowacje w czterech
+rodzajach źródeł (uczelnie, repozytoria kodu, wiadomości, crowdfunding),
+łączy je w projekty, ocenia według jawnych kryteriów i pomaga skierować
+je do odbiorców – od odkrycia do wdrożenia.
+
+Aplikacja działa lokalnie na komputerze (adres 127.0.0.1) i nie jest
+widoczna w sieci. Internet jest potrzebny tylko do skanowania źródeł.
+
+
+1. URUCHOMIENIE I ZAMYKANIE
+---------------------------
+
+Uruchomienie:
+  1. Kliknij dwukrotnie skrót "Radar Innowacji" na pulpicie lub w menu Start.
+  2. Otworzy się okno konsoli z adresem, np. http://127.0.0.1:5080.
+  3. Przeglądarka sama otworzy Dashboard. Jeśli tak się nie stanie,
+     wpisz w przeglądarce adres widoczny w oknie konsoli.
+
+  Ponowne kliknięcie skrótu nie uruchamia drugiej kopii – otwiera
+  przeglądarkę na już działającej aplikacji.
+
+Zamykanie (każdy sposób zapisuje dane):
+  - przycisk "Zamknij aplikację" na dole menu bocznego -> "Zamknij",
+  - zamknięcie okna konsoli,
+  - Ctrl+C w oknie konsoli.
+
+  UWAGA: zamknięcie samej karty przeglądarki NIE wyłącza aplikacji.
+
+
+2. PIERWSZE KROKI
+-----------------
+
+Przy pierwszym uruchomieniu baza jest pusta, a skanowanie rzeczywistych
+źródeł zaczyna się samo po około 10 sekundach.
+
+Aby od razu zobaczyć, jak działa aplikacja:
+  1. Menu "Źródła danych" -> karta "Dane demonstracyjne"
+     -> "Załaduj przykłady".
+  2. Powstaje 28 przykładowych materiałów z czterech radarów,
+     10 projektów i 8 kategorii.
+
+Dane przykładowe mają oznaczenie DEMO i nie są prawdziwymi odkryciami.
+Usuwa się je przyciskiem "Usuń przykłady" na tej samej karcie –
+usuwane są wyłącznie dane DEMO.
+
+
+3. MENU – PRZEGLĄD FUNKCJI
+--------------------------
+
+PRZEGLĄD
+
+  Dashboard
+    Najważniejsze liczby: wszystkie odkrycia, potencjalne innowacje,
+    nowe odkrycia z 7 dni, aktywne źródła, kategorie, stan AI.
+    Wykres aktywności w czasie, status systemu, najnowsze odkrycia
+    i najpopularniejsze kategorie. Przycisk "Odśwież" aktualizuje dane.
+
+RADARY
+
+  Radar uczelni / Radar repozytoriów / Radar wiadomości /
+  Radar portali crowdfundingowych
+    Każdy radar pokazuje tylko materiały ze swojego typu źródeł.
+    Dostępne filtry:
+      - wyszukiwanie w tytułach i opisach,
+      - pole daty (publikacja / odkrycie) i zakres dat,
+      - kategoria, źródło, status odkrycia, status analizy AI,
+      - sortowanie i kierunek, minimalna świeżość (%),
+      - "Tylko potencjalne innowacje".
+    W radarze repozytoriów można włączyć "Pokaż odfiltrowany szum".
+    Ustaw filtry i kliknij "Szukaj"; "Wyczyść filtry" przywraca domyślne.
+    Uwaga: domyślny zakres dat to "Ostatnie 30 dni" – starsze materiały
+    zobaczysz po zmianie zakresu.
+
+ANALIZA
+
+  Wszystkie odkrycia
+    Te same filtry co w radarach, ale dla wszystkich źródeł naraz.
+    Kliknięcie tytułu otwiera KARTĘ ODKRYCIA, na której widać:
+      - opis, autora, organizację, daty publikacji, aktywności i odkrycia,
+      - fragment treści źródłowej,
+      - technologie i kategorie,
+      - projekt, do którego należy materiał,
+      - "Ten sam projekt w innych miejscach" i "Podobne odkrycia",
+      - wynik i uzasadnienie analizy AI.
+    Przyciski: "Otwórz źródło", "Oznacz jako zweryfikowane",
+    "Uruchom analizę AI".
+
+  Wspólny radar projektów
+    Jeden widok projektów zebranych ze wszystkich radarów. Projekt może
+    mieć wiele materiałów – każdy zachowuje swoje źródło i datę.
+    Filtr "Min. liczba źródeł" (np. 2) pokazuje projekty znalezione
+    w kilku niezależnych miejscach.
+    Karta projektu pokazuje: ocenę potencjału, kartę oceny, rekomendowaną
+    ścieżkę, ścieżkę powiązań, materiały źródłowe, podobne projekty
+    i historię połączeń.
+
+  Duplikaty i powiązania
+    "Wyszukaj duplikaty" porównuje projekty. Jednoznaczne duplikaty są
+    łączone automatycznie, a niejednoznaczne trafiają do listy propozycji
+    – zdecyduj "Akceptuj" lub "Odrzuć". Materiały źródłowe nigdy nie są
+    usuwane.
+
+  Kategorie i trendy
+    Kategorie tworzone na podstawie podobieństwa projektów.
+    Trendy liczone są na unikalnych projektach (nie na liczbie pobranych
+    materiałów). Widoczne: najaktywniejsze i najszybciej rosnące
+    kategorie, nowe kategorie, propozycje nowych kategorii (do akceptacji)
+    i historia zmian. "Przelicz kategorie" uruchamia grupowanie od nowa.
+    Dane DEMO są pomijane przy grupowaniu.
+
+OCENA I WDROŻENIA
+
+  Zgłoś innowację
+    Formularz dla szkół, uczelni, samorządów i innych instytucji.
+    Pola obowiązkowe są oznaczone gwiazdką (*): tytuł, opis, rodzaj
+    innowacji, etap rozwoju, nazwa i typ instytucji.
+      - "Sprawdź, czy podobne już istnieje" – porównuje zgłoszenie
+        z bazą przed zapisem,
+      - "Wyślij zgłoszenie" – zapisuje projekt, który od razu dostaje
+        kartę oceny, rekomendowaną ścieżkę i listę możliwych odbiorców,
+      - "Wstaw przykład" – wypełnia formularz przypadkiem demonstracyjnym.
+    Adres e-mail jest zapisywany tylko po zaznaczeniu zgody.
+
+  Lejek innowacji
+    Etapy procesu (wykryta, zgłoszona, w ocenie, oceniona, rekomendowana,
+    skierowana do odbiorcy, pilotaż, wdrożona, odłożona, odrzucona)
+    oraz rozkład rekomendowanych ścieżek.
+      - "Oceń projekty bez aktualnej oceny" – liczy oceny dla projektów,
+        które jeszcze ich nie mają,
+      - filtry: szukaj, etap procesu, ścieżka, rodzaj, minimalny wynik,
+      - "Eksport CSV" / "Eksport JSON" – pobranie listy projektów.
+
+  Karta oceny (na stronie projektu)
+    Wynik 0–100 z sześciu kryteriów w skali 0–5:
+      Nowość 20%, Problem i wpływ 20%, Możliwość przeniesienia
+      i skalowania 20%, Dojrzałość 15%, Gotowość do wdrożenia 15%,
+      Kompletność informacji 10%.
+    Przy każdym kryterium widać uzasadnienie. Przycisk "Zmień" pozwala
+    ekspertowi poprawić ocenę (z uzasadnieniem). AI jest tylko jednym
+    z sygnałów, a nie potwierdzeniem innowacyjności.
+
+  Odbiorcy i partnerzy
+    Katalog odbiorców, do których system dopasowuje ocenione innowacje
+    (typ, sektory, ścieżki, minimalny etap). Wpisy z oznaczeniem
+    PRZYKŁAD to ogólne typy odbiorców – zastąp je lub uzupełnij własnymi
+    partnerami ("Edytuj", "Dodaj odbiorcę", "Wyłącz").
+
+  Metodyka oceny
+    Jawny opis procesu, kryteriów, wag i reguł punktacji. Strona jest
+    generowana z tych samych definicji, których używa silnik oceny.
+
+KONFIGURACJA
+
+  Źródła danych
+    Lista źródeł z radarem, metodą pobierania, częstotliwością,
+    ostatnim skanem i liczbą odkryć.
+      - "Skanuj" przy źródle – skanowanie na żądanie (nie blokuje
+        interfejsu),
+      - "Edytuj" – zmiana ustawień źródła,
+      - formularz "Nowe źródło" – nazwa, adres URL, radar, typ źródła,
+        interwał skanowania, opcjonalny token API, aktywność,
+      - karta "Dane demonstracyjne" – załadowanie / usunięcie przykładów.
+    Skanowanie w tle uruchamia się samo (domyślnie co 15 minut dla
+    zaległych źródeł). Awaria jednego źródła nie zatrzymuje pozostałych.
+
+  Historia skanowania
+    Wyniki kolejnych skanów: liczba nowych materiałów i ewentualne błędy.
+
+  Ustawienia
+    Adres aplikacji, lokalizacja bazy danych i logów, konfiguracja AI
+    oraz "Test połączenia" z Ollamą.
+
+
+4. TYPOWY SCENARIUSZ PRACY
+--------------------------
+
+  1. Sprawdź Dashboard – nowe odkrycia i status skanowania.
+  2. Przejrzyj radary lub "Wszystkie odkrycia" z filtrem
+     "Tylko potencjalne innowacje".
+  3. Otwórz kartę odkrycia, sprawdź źródło i oznacz jako zweryfikowane.
+  4. We "Wspólnym radarze projektów" sprawdź, w ilu źródłach pojawia się
+     projekt (filtr "Min. liczba źródeł").
+  5. W "Duplikatach i powiązaniach" rozstrzygnij propozycje połączeń.
+  6. W "Lejku innowacji" oceń projekty, przejrzyj rekomendowane ścieżki
+     i popraw oceny na karcie projektu, jeśli trzeba.
+  7. Skieruj projekt do odbiorcy z katalogu "Odbiorcy i partnerzy".
+  8. Wyeksportuj wyniki (CSV / JSON) do raportu.
+
+
+5. ANALIZA AI (OPCJONALNIE)
+---------------------------
+
+Bez AI aplikacja działa w pełni – materiały czekają w kolejce ze
+statusem "Oczekuje na AI" / "W kolejce AI".
+
+Aby włączyć AI:
+  1. Zainstaluj Ollamę ze strony https://ollama.com.
+  2. W wierszu poleceń: ollama pull qwen3:1.7b
+  3. W aplikacji: Ustawienia -> "Test połączenia".
+
+Materiały są analizowane w tle partiami (klasyfikacja, uzasadnienie,
+wyekstrahowane informacje). Dane DEMO nie są analizowane.
+
+
+6. GDZIE SĄ DANE
+----------------
+
+  Baza danych:  %LOCALAPPDATA%\RadarInnowacji\radar.db
+  Logi:         %LOCALAPPDATA%\RadarInnowacji\logs\
+  Program:      %LOCALAPPDATA%\Programs\RadarInnowacji\
+
+Aktualne ścieżki i adres aplikacji pokazuje strona "Ustawienia".
+
+
+7. ROZWIĄZYWANIE PROBLEMÓW
+--------------------------
+
+  Przeglądarka się nie otworzyła
+    -> Otwórz ręcznie adres z okna konsoli lub ze strony Ustawienia.
+
+  "Nie znaleziono wolnego portu"
+    -> Porty 5080–5089 są zajęte; zamknij inne programy lub ustaw
+       zmienną RADAR_PORT.
+
+  "Radar Innowacji jest już uruchomiony"
+    -> Aplikacja już działa; użyj otwartej karty lub adresu z komunikatu.
+
+  Radar pokazuje mało wyników
+    -> Zmień "Zakres dat" (domyślnie ostatnie 30 dni) i kliknij "Szukaj".
+
+  Lejek / karty oceny są puste
+    -> Lejek innowacji -> "Oceń projekty bez aktualnej oceny".
+
+  Status AI "niedostępne"
+    -> Normalne bez Ollamy; zobacz punkt 5.
+
+  Inne błędy
+    -> Sprawdź najnowszy plik w %LOCALAPPDATA%\RadarInnowacji\logs\.
+
+Instalacja i odinstalowanie: zob. docs/INSTALACJA.md.

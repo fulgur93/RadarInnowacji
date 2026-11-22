@@ -1,0 +1,198 @@
+@page "/odbiorcy"
+@rendermode InteractiveServer
+@inject IRecipientService Recipients
+
+<PageTitle>Odbiorcy i partnerzy — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Odbiorcy i partnerzy</h1>
+        <p class="page-subtitle">
+            Katalog odbiorców, partnerów i inwestorów, do których system dopasowuje ocenione innowacje.
+        </p>
+    </div>
+    <div>
+        <button type="button" class="btn btn-sm btn-primary" @onclick="Nowy">Dodaj odbiorcę</button>
+    </div>
+</div>
+
+<div class="alert alert-info py-2 small">
+    Wpisy oznaczone <span class="badge bg-warning text-dark">PRZYKŁAD</span> to ogólne typy odbiorców, a nie konkretne
+    organizacje. Instytucja korzystająca z radaru powinna zastąpić je lub uzupełnić własnymi partnerami
+    (np. konkretnymi programami, funduszami, firmami i samorządami z regionu). Edycja przykładu zamienia go we wpis użytkownika.
+</div>
+
+@if (!string.IsNullOrEmpty(komunikat))
+{
+    <div class="alert @(komunikatBlad ? "alert-warning" : "alert-success") py-2 small">@komunikat</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 @(formularz is null ? "" : "col-xl-7")">
+        <div class="card dashboard-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Odbiorca</th><th>Typ</th><th>Sektory</th><th>Ścieżki</th><th>Od etapu</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var item in lista)
+                            {
+                                <tr class="@(item.IsActive ? "" : "text-muted")">
+                                    <td>
+                                        <div class="fw-semibold small">@item.Name</div>
+                                        @if (item.IsExample)
+                                        {
+                                            <span class="badge bg-warning text-dark">PRZYKŁAD</span>
+                                        }
+                                        @if (!item.IsActive)
+                                        {
+                                            <span class="badge bg-secondary">wyłączony</span>
+                                        }
+                                        <div class="small text-muted">@item.Description</div>
+                                        @if (!string.IsNullOrWhiteSpace(item.Website))
+                                        {
+                                            <a class="small" href="@item.Website" target="_blank" rel="noopener noreferrer">@item.Website</a>
+                                        }
+                                    </td>
+                                    <td class="small">@UiLabels.Odbiorca(item.Type)</td>
+                                    <td class="small">@item.Sectors</td>
+                                    <td class="small">@string.Join(", ", Sciezki(item.Paths).Select(UiLabels.Sciezka))</td>
+                                    <td class="small">@UiLabels.EtapRozwoju(item.MinimumStage)</td>
+                                    <td class="text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => Edytuj(item)">Edytuj</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => PrzelaczAsync(item)">
+                                            @(item.IsActive ? "Wyłącz" : "Włącz")
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (formularz is not null)
+    {
+        <div class="col-12 col-xl-5">
+            <div class="card dashboard-card">
+                <div class="card-header dashboard-card-header">@(formularz.Id is null ? "Nowy odbiorca" : "Edycja odbiorcy")</div>
+                <div class="card-body">
+                    <label class="form-label form-label-sm">Nazwa *</label>
+                    <input class="form-control form-control-sm mb-2" @bind="formularz.Name" maxlength="500" />
+                    <label class="form-label form-label-sm">Typ</label>
+                    <select class="form-select form-select-sm mb-2" @bind="formularz.Type">
+                        @foreach (var type in Enum.GetValues<RecipientType>())
+                        {
+                            <option value="@type">@UiLabels.Odbiorca(type)</option>
+                        }
+                    </select>
+                    <label class="form-label form-label-sm">Opis – czym się zajmuje, w czym może pomóc</label>
+                    <textarea class="form-control form-control-sm mb-2" rows="2" @bind="formularz.Description" maxlength="2000"></textarea>
+                    <label class="form-label form-label-sm">Sektory (po przecinku)</label>
+                    <input class="form-control form-control-sm" @bind="formularz.Sectors" maxlength="500" />
+                    <div class="small text-muted mb-2">Rozpoznawane: @string.Join(", ", SectorDictionary.Sectors.Keys)</div>
+                    <label class="form-label form-label-sm">Słowa kluczowe (po przecinku)</label>
+                    <input class="form-control form-control-sm mb-2" @bind="formularz.Keywords" maxlength="1000" />
+                    <div class="form-label form-label-sm">Obsługiwane ścieżki</div>
+                    @foreach (var path in Enum.GetValues<DevelopmentPath>())
+                    {
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="sc-@path" checked="@formularz.Paths.Contains(path)"
+                                   @onchange="e => PrzelaczSciezke(path, (bool)e.Value!)" />
+                            <label class="form-check-label small" for="sc-@path">@UiLabels.Sciezka(path)</label>
+                        </div>
+                    }
+                    <div class="row g-2 mt-1">
+                        <div class="col-6">
+                            <label class="form-label form-label-sm">Od etapu</label>
+                            <select class="form-select form-select-sm" @bind="formularz.MinimumStage">
+                                @foreach (var stage in Enum.GetValues<ProjectStatus>())
+                                {
+                                    <option value="@stage">@(stage == ProjectStatus.Unknown ? "Dowolny" : UiLabels.EtapRozwoju(stage))</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label form-label-sm">Województwo</label>
+                            <input class="form-control form-control-sm" @bind="formularz.Region" maxlength="100" />
+                        </div>
+                    </div>
+                    <label class="form-label form-label-sm mt-2">Strona www</label>
+                    <input class="form-control form-control-sm mb-3" @bind="formularz.Website" placeholder="https://..." />
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-primary" @onclick="ZapiszAsync">Zapisz</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => formularz = null">Anuluj</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<Recipient> lista = [];
+    private RecipientForm? formularz;
+    private string komunikat = string.Empty;
+    private bool komunikatBlad;
+
+    protected override async Task OnInitializedAsync() => lista = await Recipients.GetAllAsync();
+
+    private static IEnumerable<DevelopmentPath> Sciezki(string value) =>
+        SectorDictionary.SplitList(value)
+            .Select(x => Enum.TryParse<DevelopmentPath>(x, out var path) ? path : (DevelopmentPath?)null)
+            .Where(x => x is not null)
+            .Select(x => x!.Value);
+
+    private void Nowy() => formularz = new RecipientForm { Type = RecipientType.Firmy };
+
+    private void Edytuj(Recipient item) => formularz = new RecipientForm
+    {
+        Id = item.Id,
+        Name = item.Name,
+        Type = item.Type,
+        Description = item.Description,
+        Sectors = item.Sectors,
+        Keywords = item.Keywords,
+        Paths = Sciezki(item.Paths).ToList(),
+        MinimumStage = item.MinimumStage,
+        Region = item.Region,
+        Website = item.Website,
+        IsActive = item.IsActive
+    };
+
+    private void PrzelaczSciezke(DevelopmentPath path, bool zaznaczona)
+    {
+        formularz?.Paths.Remove(path);
+        if (zaznaczona)
+        {
+            formularz?.Paths.Add(path);
+        }
+    }
+
+    private async Task ZapiszAsync()
+    {
+        if (formularz is null)
+        {
+            return;
+        }
+
+        var result = await Recipients.SaveAsync(formularz);
+        komunikat = result.Message;
+        komunikatBlad = !result.Success;
+        if (result.Success)
+        {
+            formularz = null;
+            lista = await Recipients.GetAllAsync();
+        }
+    }
+
+    private async Task PrzelaczAsync(Recipient item)
+    {
+        var result = await Recipients.SetActiveAsync(item.Id, !item.IsActive);
+        komunikat = result.Message;
+        komunikatBlad = !result.Success;
+        lista = await Recipients.GetAllAsync();
+    }
+}

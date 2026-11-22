@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject IDashboardService DashboardService
 @inject IDemoDataService DemoService
+@inject IPipelineService Pipeline
 
 <PageTitle>Dashboard — Radar Innowacji</PageTitle>
 
@@ -79,30 +80,52 @@
 <div class="row g-3 mt-1">
     <div class="col-12 col-xl-8">
         <div class="card dashboard-card h-100">
-            <div class="card-header dashboard-card-header">Aktywność odkryć w czasie (ostatnie 30 dni z danymi)</div>
+            <div class="card-header dashboard-card-header">Aktywność odkryć w czasie (ostatnie 30 dni)</div>
             <div class="card-body">
                 @{
                     var punkty = podsumowanie.Activity.ToList();
-                    var maksimum = punkty.Count == 0 ? 1 : punkty.Max(x => x.Count);
-                    var krok = punkty.Count == 0 ? 0 : 600.0 / punkty.Count;
+                    var sumaOkna = punkty.Sum(x => x.Count);
+                    var maksimum = Math.Max(1, punkty.Count == 0 ? 1 : punkty.Max(x => x.Count));
+                    var krok = punkty.Count == 0 ? 0 : (ChartRight - ChartLeft) / punkty.Count;
+                    var wysokoscObszaru = ChartBottom - ChartTop;
+                    var poziomy = maksimum >= 2 ? new[] { 0, maksimum / 2, maksimum } : new[] { 0, maksimum };
                 }
-                <svg class="activity-chart" viewBox="0 0 640 180" role="img" aria-label="Wykres aktywności odkryć">
-                    @for (var i = 0; i <= 4; i++)
+                <svg class="activity-chart" viewBox="0 0 800 230" role="img"
+                     aria-label="Wykres aktywności odkryć: @sumaOkna odkryć w ostatnich 30 dniach, maksymalnie @maksimum dziennie">
+                    @foreach (var poziom in poziomy.Distinct())
                     {
-                        <line x1="30" y1="@(30 + i * 30)" x2="625" y2="@(30 + i * 30)" class="chart-grid-line" />
+                        var y = ChartBottom - poziom * wysokoscObszaru / maksimum;
+                        <g>
+                            <line x1="@N(ChartLeft)" y1="@N(y)" x2="@N(ChartRight)" y2="@N(y)" class="chart-grid-line" />
+                            <text x="@N(ChartLeft - 8)" y="@N(y + 4)" text-anchor="end" class="chart-axis-label">@poziom</text>
+                        </g>
                     }
                     @for (var i = 0; i < punkty.Count; i++)
                     {
-                        var wysokosc = punkty[i].Count * 120.0 / maksimum;
-                        <rect x="@(31 + i * krok)" y="@(150 - wysokosc)" width="@(Math.Max(2, krok - 2))"
-                              height="@wysokosc" fill="#2f6fed" opacity="0.85">
-                            <title>@punkty[i].Date: @punkty[i].Count</title>
-                        </rect>
+                        if (punkty[i].Count > 0)
+                        {
+                            var wysokosc = punkty[i].Count * wysokoscObszaru / maksimum;
+                            <rect x="@N(ChartLeft + i * krok + 1)" y="@N(ChartBottom - wysokosc)"
+                                  width="@N(Math.Max(2, krok - 3))" height="@N(wysokosc)" rx="2" class="chart-bar">
+                                <title>@EtykietaDnia(punkty[i].Date): @punkty[i].Count</title>
+                            </rect>
+                        }
+                        if ((punkty.Count - 1 - i) % 7 == 0)
+                        {
+                            <g>
+                                <text x="@N(ChartLeft + i * krok + krok / 2)" y="@N(ChartBottom + 20)" text-anchor="middle"
+                                      class="chart-axis-label">@EtykietaDnia(punkty[i].Date)</text>
+                            </g>
+                        }
                     }
                 </svg>
-                @if (punkty.Count == 0)
+                @if (sumaOkna == 0)
                 {
-                    <p class="chart-empty-label-html">Brak danych do wyświetlenia</p>
+                    <p class="chart-empty-label-html chart-empty-overlay">Brak odkryć w ostatnich 30 dniach</p>
+                }
+                else
+                {
+                    <p class="chart-summary">Łącznie @sumaOkna odkryć · najwięcej @maksimum dziennie</p>
                 }
             </div>
         </div>
@@ -189,15 +212,78 @@
     </div>
 </div>
 
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header dashboard-card-header d-flex justify-content-between">
+                <span>Lejek innowacji – od identyfikacji do wdrożenia</span>
+                <a href="/lejek" class="small">Pełny lejek</a>
+            </div>
+            <div class="card-body">
+                @if (lejek is null || lejek.TotalProjects == 0)
+                {
+                    <div class="empty-panel">
+                        Brak projektów. <a href="/zglos">Zgłoś innowację</a> albo załaduj przykłady.
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @foreach (var (stage, count) in lejek.StageCounts.Where(x => x.Value > 0 || x.Key is PipelineStage.Rekomendowana or PipelineStage.Skierowana or PipelineStage.Wdrozona))
+                        {
+                            <a class="pipeline-step text-decoration-none" href="/lejek">@UiLabels.EtapProcesu(stage): <strong>@count</strong></a>
+                        }
+                        <span class="pipeline-step">Ocenione: <strong>@lejek.AssessedProjects</strong> / @lejek.TotalProjects</span>
+                        <span class="pipeline-step">Skierowania: <strong>@lejek.Referrals</strong></span>
+                    </div>
+                    @if (lejek.Items.Count > 0)
+                    {
+                        <div class="small fw-semibold mb-1">Najwyżej ocenione</div>
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                @foreach (var item in lejek.Items.Take(5))
+                                {
+                                    <tr>
+                                        <td style="width:3.5rem"><span class="badge @UiLabels.WynikKlasa(item.TotalScore)">@item.TotalScore?.ToString("0")</span></td>
+                                        <td><a href="/projekty/@item.ProjectId#ocena">@item.Title</a>
+                                            @if (item.IsDemo) { <span class="badge bg-warning text-dark ms-1">DEMO</span> }</td>
+                                        <td class="small">@string.Join(", ", item.Paths.Select(UiLabels.Sciezka))</td>
+                                        <td><span class="badge bg-dark">@UiLabels.EtapProcesu(item.PipelineStage)</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
 @code {
     private DashboardSummary podsumowanie = new();
+    private FunnelModel? lejek;
     private string komunikat = string.Empty;
+
+    private const double ChartLeft = 40;
+    private const double ChartRight = 790;
+    private const double ChartTop = 16;
+    private const double ChartBottom = 196;
+
+    // Współrzędne SVG zawsze z kropką dziesiętną, niezależnie od kultury (pl-PL używa przecinka).
+    private static string N(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string EtykietaDnia(string data) =>
+        DateTime.TryParseExact(data, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dzien)
+            ? dzien.ToString("dd.MM", CultureInfo.InvariantCulture)
+            : data;
 
     protected override async Task OnInitializedAsync() => await OdswiezAsync();
 
     private async Task OdswiezAsync()
     {
         podsumowanie = await DashboardService.GetSummaryAsync();
+        lejek = await Pipeline.GetFunnelAsync(new FunnelFilter { OnlyAssessed = true, Limit = 5 });
     }
 
     private async Task LoadDemoAsync()

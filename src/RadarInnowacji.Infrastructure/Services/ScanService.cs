@@ -38,6 +38,13 @@ public sealed class ScanService(
                 return new ScanResult(source.Id, source.Name, ScanStatus.Succeeded, 0, 0, null);
             }
 
+            if (source.SourceType == SourceType.Manual)
+            {
+                // Zgłoszenia ręczne nie mają czego pobierać – materiały dodaje formularz „Zgłoś innowację”.
+                return new ScanResult(source.Id, source.Name, ScanStatus.Succeeded, 0, 0,
+                    "Źródło ręczne – materiały dodaje formularz zgłoszeń, nie skanowanie.");
+            }
+
             var startedAt = DateTime.UtcNow;
             var history = new ScanHistory
             {
@@ -184,7 +191,7 @@ public sealed class ScanService(
     public async Task<IReadOnlyList<ScanResult>> ScanDueSourcesAsync(CancellationToken cancellationToken = default)
     {
         var sources = await db.Sources
-            .Where(x => x.IsActive && !x.IsDemo)
+            .Where(x => x.IsActive && !x.IsDemo && x.SourceType != SourceType.Manual)
             .ToListAsync(cancellationToken);
 
         var now = DateTime.UtcNow;

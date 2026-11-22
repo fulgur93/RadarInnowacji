@@ -32,4 +32,22 @@ public class DashboardServiceTests
         Assert.NotEmpty(summary.Activity);
         Assert.Equal(summary.TotalDiscoveries - summary.AiProcessedCount, summary.AiPendingCount);
     }
+
+    [Fact]
+    public async Task GetSummaryAsync_AktywnoscToCiagle30DniZZerami()
+    {
+        using var database = new SqliteTestDatabase();
+        await new DemoDataSeeder(database.Context).LoadAsync();
+        var dashboard = new DashboardService(database.Context, new DiscoveryService(database.Context));
+
+        var summary = await dashboard.GetSummaryAsync();
+
+        Assert.Equal(30, summary.Activity.Count);
+        Assert.Equal(DateTime.UtcNow.Date.ToString("yyyy-MM-dd"), summary.Activity[^1].Date);
+        Assert.Equal(DateTime.UtcNow.Date.AddDays(-29).ToString("yyyy-MM-dd"), summary.Activity[0].Date);
+        var dni = summary.Activity.Select(x => DateTime.Parse(x.Date)).ToList();
+        Assert.All(dni.Zip(dni.Skip(1)), para => Assert.Equal(1, (para.Second - para.First).TotalDays));
+        var wOknie = database.Context.Discoveries.Count(x => x.DiscoveredAt >= DateTime.UtcNow.Date.AddDays(-29));
+        Assert.Equal(wOknie, summary.Activity.Sum(x => x.Count));
+    }
 }

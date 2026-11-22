@@ -123,7 +123,7 @@
                 <input class="form-control form-control-sm mb-2" @bind="nowyUrl" placeholder="https://..." />
                 <label class="form-label form-label-sm">Radar</label>
                 <select class="form-select form-select-sm mb-2" @bind="nowyRadar">
-                    @foreach (var radar in Enum.GetValues<RadarKind>())
+                    @foreach (var radar in Enum.GetValues<RadarKind>().Where(x => x != RadarKind.Zgloszenia))
                     {
                         <option value="@radar">@UiLabels.Radar(radar)</option>
                     }

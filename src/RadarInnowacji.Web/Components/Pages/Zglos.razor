@@ -1,0 +1,250 @@
+@page "/zglos"
+@rendermode InteractiveServer
+@inject ISubmissionService Submissions
+@inject NavigationManager Navigation
+
+<PageTitle>Zgłoś innowację — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Zgłoś innowację</h1>
+        <p class="page-subtitle">
+            Formularz dla szkół, uczelni, samorządów i innych instytucji. Zgłoszenie od razu otrzymuje kartę oceny,
+            rekomendację dalszej ścieżki i listę możliwych odbiorców.
+        </p>
+    </div>
+    <div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="WstawPrzyklad">
+            Wstaw przykład (przypadek demonstracyjny)
+        </button>
+    </div>
+</div>
+
+@if (bledy.Count > 0)
+{
+    <div class="alert alert-warning py-2 small">
+        <strong>Popraw zgłoszenie:</strong>
+        <ul class="mb-0">
+            @foreach (var blad in bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+        @if (istniejacyProjekt is not null)
+        {
+            <a href="/projekty/@istniejacyProjekt#ocena">Otwórz istniejący projekt</a>
+        }
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-8">
+        <div class="card dashboard-card">
+            <div class="card-header dashboard-card-header">Innowacja</div>
+            <div class="card-body">
+                <label class="form-label form-label-sm" for="tytul">Tytuł *</label>
+                <input id="tytul" class="form-control form-control-sm mb-2" @bind="form.Title" @bind:after="ZmienionoTekst"
+                       maxlength="300" placeholder="np. Uczniowskie lekcje z symulacjami fizyki" />
+
+                <label class="form-label form-label-sm" for="opis">Opis – co to jest i jak działa *</label>
+                <textarea id="opis" class="form-control form-control-sm mb-2" rows="4" @bind="form.Description"
+                          @bind:after="ZmienionoTekst" maxlength="2000"></textarea>
+
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm" for="problem">Jaki problem rozwiązuje?</label>
+                        <textarea id="problem" class="form-control form-control-sm" rows="3" @bind="form.Problem" maxlength="2000"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm" for="rozwiazanie">Na czym polega rozwiązanie?</label>
+                        <textarea id="rozwiazanie" class="form-control form-control-sm" rows="3" @bind="form.Solution" maxlength="2000"></textarea>
+                    </div>
+                </div>
+
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm" for="rodzaj">Rodzaj innowacji *</label>
+                        <select id="rodzaj" class="form-select form-select-sm" @bind="form.Kind">
+                            @foreach (var kind in Enum.GetValues<InnovationKind>())
+                            {
+                                <option value="@kind">@(kind == InnovationKind.Nieokreslona ? "— wybierz —" : UiLabels.Rodzaj(kind))</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm" for="etap">Etap rozwoju *</label>
+                        <select id="etap" class="form-select form-select-sm" @bind="form.Stage">
+                            @foreach (var stage in Enum.GetValues<ProjectStatus>())
+                            {
+                                <option value="@stage">@(stage == ProjectStatus.Unknown ? "— wybierz —" : UiLabels.EtapRozwoju(stage))</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm" for="link">Link (strona, repozytorium, publikacja)</label>
+                        <input id="link" class="form-control form-control-sm" @bind="form.Link" placeholder="https://..." />
+                    </div>
+                </div>
+                <p class="small text-muted mt-2 mb-0">
+                    Innowacja nie musi być produktem technologicznym – może być rozwiązaniem organizacyjnym,
+                    edukacyjnym, społecznym albo usprawnieniem procesu.
+                </p>
+            </div>
+        </div>
+
+        <div class="card dashboard-card mt-3">
+            <div class="card-header dashboard-card-header">Instytucja i twórcy</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm" for="instytucja">Nazwa instytucji *</label>
+                        <input id="instytucja" class="form-control form-control-sm" @bind="form.Institution" maxlength="500" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm" for="typ">Typ instytucji *</label>
+                        <select id="typ" class="form-select form-select-sm" @bind="form.InstitutionType">
+                            @foreach (var type in Enum.GetValues<InstitutionType>())
+                            {
+                                <option value="@type">@(type == InstitutionType.Nieznany ? "— wybierz —" : UiLabels.Instytucja(type))</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm" for="region">Województwo</label>
+                        <input id="region" class="form-control form-control-sm" @bind="form.Region" maxlength="100" placeholder="np. podkarpackie" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm" for="tworcy">Twórcy lub zespół</label>
+                        <input id="tworcy" class="form-control form-control-sm" @bind="form.Creators" maxlength="1000" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm" for="email">E-mail do kontaktu (opcjonalnie)</label>
+                        <input id="email" type="email" class="form-control form-control-sm" @bind="form.ContactEmail" maxlength="254" />
+                    </div>
+                </div>
+                <div class="form-check mt-2">
+                    <input id="zgoda" class="form-check-input" type="checkbox" @bind="form.ContactConsent" />
+                    <label class="form-check-label small" for="zgoda">
+                        Wyrażam zgodę na zapisanie adresu e-mail i kontakt w sprawie rozwoju zgłoszonej innowacji.
+                        Bez zgody adres nie zostanie zapisany.
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-primary" @onclick="WyslijAsync" disabled="@wysylanie">
+                @(wysylanie ? "Zapisywanie…" : sprawdzono && podobne.Count > 0 ? "To inne rozwiązanie – wyślij zgłoszenie" : "Wyślij zgłoszenie")
+            </button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="SprawdzPodobneAsync" disabled="@wysylanie">
+                Sprawdź, czy podobne już istnieje
+            </button>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+        <div class="card dashboard-card">
+            <div class="card-header dashboard-card-header">Czy ktoś już to robi?</div>
+            <div class="card-body">
+                @if (!sprawdzono)
+                {
+                    <p class="small text-muted mb-0">
+                        Przed zapisaniem system porównuje zgłoszenie z projektami w bazie, aby ograniczyć dublowanie prac
+                        i wskazać instytucje, które pracują nad podobnym problemem.
+                    </p>
+                }
+                else if (podobne.Count == 0)
+                {
+                    <div class="small">Nie znaleziono podobnych projektów w bazie.</div>
+                }
+                else
+                {
+                    <p class="small mb-2">Podobne projekty w bazie – sprawdź, czy to nie to samo rozwiązanie:</p>
+                    @foreach (var item in podobne)
+                    {
+                        <div class="border rounded p-2 mb-2 small">
+                            <a href="/projekty/@item.ProjectId" target="_blank" rel="noopener">@item.Title</a>
+                            <div class="text-muted">@item.Reason</div>
+                        </div>
+                    }
+                    <p class="small text-muted mb-0">
+                        Podobny projekt w innej instytucji to także szansa: potencjalny partner lub odbiorca.
+                    </p>
+                }
+            </div>
+        </div>
+
+        <div class="card dashboard-card mt-3">
+            <div class="card-header dashboard-card-header">Co dalej ze zgłoszeniem?</div>
+            <div class="card-body small">
+                <ol class="mb-0 ps-3">
+                    <li>Zgłoszenie trafia do bazy jako projekt na etapie „Zgłoszona”.</li>
+                    <li>System liczy kartę oceny według jawnych kryteriów (<a href="/metodyka">metodyka</a>).</li>
+                    <li>Rekomenduje ścieżkę: transfer, wdrożenie, ochronę własności intelektualnej, komercjalizację lub dalszy rozwój.</li>
+                    <li>Wskazuje odbiorców i partnerów; ekspert zatwierdza ocenę i kieruje projekt dalej.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private InnovationSubmission form = new();
+    private List<string> bledy = [];
+    private IReadOnlyList<SimilarProjectItem> podobne = [];
+    private bool sprawdzono;
+    private bool wysylanie;
+    private int? istniejacyProjekt;
+
+    private void ZmienionoTekst()
+    {
+        // Zmiana treści wymaga ponownego sprawdzenia podobnych projektów.
+        sprawdzono = false;
+        podobne = [];
+    }
+
+    private void WstawPrzyklad()
+    {
+        form = RadarInnowacji.Infrastructure.Services.SubmissionService.DemoExample();
+        bledy = [];
+        ZmienionoTekst();
+    }
+
+    private async Task SprawdzPodobneAsync()
+    {
+        podobne = await Submissions.FindSimilarAsync(form.Title, form.Description);
+        sprawdzono = true;
+    }
+
+    private async Task WyslijAsync()
+    {
+        bledy = [];
+        istniejacyProjekt = null;
+        if (!sprawdzono)
+        {
+            await SprawdzPodobneAsync();
+            if (podobne.Count > 0)
+            {
+                return;
+            }
+        }
+
+        wysylanie = true;
+        try
+        {
+            var result = await Submissions.SubmitAsync(form);
+            if (result.Success && result.ProjectId is { } id)
+            {
+                Navigation.NavigateTo($"/projekty/{id}#ocena");
+                return;
+            }
+
+            bledy = result.Errors.ToList();
+            istniejacyProjekt = result.ProjectId;
+        }
+        finally
+        {
+            wysylanie = false;
+        }
+    }
+}

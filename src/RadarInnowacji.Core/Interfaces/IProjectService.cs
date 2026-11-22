@@ -11,6 +11,20 @@ public interface IProjectService
         int projectId,
         int limit = 8,
         CancellationToken cancellationToken = default);
+    /// <summary>Podobne projekty dla jeszcze niezapisanego tekstu (np. formularza zgłoszenia).</summary>
+    Task<IReadOnlyList<SimilarProjectItem>> FindSimilarToTextAsync(
+        string title,
+        string description,
+        int limit = 5,
+        CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Projekty o podobnym problemie (łagodniejsze kryterium niż duplikaty) – używane w karcie oceny
+    /// do wskazania instytucji pracujących nad podobnym problemem.
+    /// </summary>
+    Task<IReadOnlyList<SimilarProjectItem>> GetRelatedProjectsAsync(
+        int projectId,
+        int limit = 8,
+        CancellationToken cancellationToken = default);
     Task<DuplicateDetectionResult> DetectDuplicatesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ProjectMergeProposalModel>> GetProposalsAsync(CancellationToken cancellationToken = default);
     Task<ProjectMergeProposalModel?> ProposeMergeAsync(

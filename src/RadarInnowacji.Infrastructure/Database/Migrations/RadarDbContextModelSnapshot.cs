@@ -67,6 +67,47 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.ToTable("AiAnalyses");
                 });
 
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.AssessmentCriterionScore", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AutomaticScore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Criterion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ExpertComment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FinalScore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Origin")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProjectAssessmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectAssessmentId", "Criterion")
+                        .IsUnique();
+
+                    b.ToTable("AssessmentCriterionScores");
+                });
+
             modelBuilder.Entity("RadarInnowacji.Core.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -216,6 +257,44 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.ToTable("CategoryProposalProjects");
                 });
 
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.CriterionOverride", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Criterion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("InnovationProjectId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InnovationProjectId", "Criterion", "IsActive");
+
+                    b.ToTable("CriterionOverrides");
+                });
+
             modelBuilder.Entity("RadarInnowacji.Core.Entities.Discovery", b =>
                 {
                     b.Property<int>("Id")
@@ -362,7 +441,18 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("ContactConsent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Creators")
+                        .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
@@ -379,6 +469,16 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Property<double>("FreshnessScore")
                         .HasColumnType("REAL");
 
+                    b.Property<int>("InnovationKind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Institution")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("InstitutionType")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsDemo")
                         .HasColumnType("INTEGER");
 
@@ -388,13 +488,23 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Property<int?>("MergedIntoProjectId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("PipelineStage")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Problem")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ProfileUpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("ProjectStatus")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("ProposedSolution")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -410,7 +520,49 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
 
                     b.HasIndex("MergedIntoProjectId");
 
+                    b.HasIndex("PipelineStage");
+
                     b.ToTable("InnovationProjects");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectAssessment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Confidence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("InnovationProjectId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("InputHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("TotalScore")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TotalScore");
+
+                    b.HasIndex("InnovationProjectId", "IsCurrent");
+
+                    b.ToTable("ProjectAssessments");
                 });
 
             modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectCategory", b =>
@@ -564,6 +716,168 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.HasIndex("TargetProjectId");
 
                     b.ToTable("ProjectMergeProposals");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectPipelineEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FromStage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("InnovationProjectId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ToStage")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InnovationProjectId", "CreatedAt");
+
+                    b.ToTable("ProjectPipelineEvents");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectRecommendation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Path")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProjectAssessmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Path");
+
+                    b.HasIndex("ProjectAssessmentId");
+
+                    b.ToTable("ProjectRecommendations");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectReferral", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("InnovationProjectId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RecipientId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InnovationProjectId");
+
+                    b.HasIndex("RecipientId");
+
+                    b.ToTable("ProjectReferrals");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.Recipient", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsExample")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Keywords")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MinimumStage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Paths")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sectors")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Recipients");
                 });
 
             modelBuilder.Entity("RadarInnowacji.Core.Entities.RepositoryInfo", b =>
@@ -792,6 +1106,17 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Navigation("Discovery");
                 });
 
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.AssessmentCriterionScore", b =>
+                {
+                    b.HasOne("RadarInnowacji.Core.Entities.ProjectAssessment", "Assessment")
+                        .WithMany("Criteria")
+                        .HasForeignKey("ProjectAssessmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assessment");
+                });
+
             modelBuilder.Entity("RadarInnowacji.Core.Entities.Category", b =>
                 {
                     b.HasOne("RadarInnowacji.Core.Entities.Category", "Parent")
@@ -819,6 +1144,17 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("Proposal");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.CriterionOverride", b =>
+                {
+                    b.HasOne("RadarInnowacji.Core.Entities.InnovationProject", "Project")
+                        .WithMany()
+                        .HasForeignKey("InnovationProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("RadarInnowacji.Core.Entities.Discovery", b =>
@@ -859,6 +1195,17 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("MergedInto");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectAssessment", b =>
+                {
+                    b.HasOne("RadarInnowacji.Core.Entities.InnovationProject", "Project")
+                        .WithMany("Assessments")
+                        .HasForeignKey("InnovationProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectCategory", b =>
@@ -910,6 +1257,47 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
                     b.Navigation("TargetProject");
                 });
 
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectPipelineEvent", b =>
+                {
+                    b.HasOne("RadarInnowacji.Core.Entities.InnovationProject", "Project")
+                        .WithMany("PipelineEvents")
+                        .HasForeignKey("InnovationProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectRecommendation", b =>
+                {
+                    b.HasOne("RadarInnowacji.Core.Entities.ProjectAssessment", "Assessment")
+                        .WithMany("Recommendations")
+                        .HasForeignKey("ProjectAssessmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assessment");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectReferral", b =>
+                {
+                    b.HasOne("RadarInnowacji.Core.Entities.InnovationProject", "Project")
+                        .WithMany()
+                        .HasForeignKey("InnovationProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RadarInnowacji.Core.Entities.Recipient", "Recipient")
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Recipient");
+                });
+
             modelBuilder.Entity("RadarInnowacji.Core.Entities.RepositoryInfo", b =>
                 {
                     b.HasOne("RadarInnowacji.Core.Entities.Discovery", "Discovery")
@@ -955,9 +1343,20 @@ namespace RadarInnowacji.Infrastructure.Database.Migrations
 
             modelBuilder.Entity("RadarInnowacji.Core.Entities.InnovationProject", b =>
                 {
+                    b.Navigation("Assessments");
+
                     b.Navigation("CategoryLinks");
 
                     b.Navigation("DiscoveryLinks");
+
+                    b.Navigation("PipelineEvents");
+                });
+
+            modelBuilder.Entity("RadarInnowacji.Core.Entities.ProjectAssessment", b =>
+                {
+                    b.Navigation("Criteria");
+
+                    b.Navigation("Recommendations");
                 });
 
             modelBuilder.Entity("RadarInnowacji.Core.Entities.Source", b =>

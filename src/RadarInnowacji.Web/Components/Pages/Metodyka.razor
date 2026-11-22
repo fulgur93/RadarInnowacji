@@ -1,0 +1,137 @@
+@page "/metodyka"
+@inject IOptions<RadarOptions> Options
+
+<PageTitle>Metodyka oceny — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Metodyka oceny</h1>
+        <p class="page-subtitle">
+            Jawne kryteria, wagi i reguły, według których system ocenia potencjał innowacji i rekomenduje dalszą ścieżkę.
+            Ta strona jest generowana z tych samych definicji, których używa silnik oceny.
+        </p>
+    </div>
+</div>
+
+<div class="card dashboard-card mb-3">
+    <div class="card-header dashboard-card-header">Proces</div>
+    <div class="card-body small">
+        <ol class="mb-0">
+            <li><strong>Identyfikacja</strong> – radary automatycznie wykrywają materiały (uczelnie, repozytoria kodu, wiadomości,
+                crowdfunding), a instytucje zgłaszają innowacje przez <a href="/zglos">formularz</a>.</li>
+            <li><strong>Uporządkowanie</strong> – materiały z wielu źródeł są łączone w projekty; profil projektu opisuje instytucję,
+                rodzaj innowacji, etap i twórców.</li>
+            <li><strong>Ocena</strong> – karta sześciu kryteriów (0–5) liczona regułami; ekspert może zmienić każdą ocenę z uzasadnieniem.</li>
+            <li><strong>Rekomendacja</strong> – tabela reguł wybiera 1–2 ścieżki z krokami i miernikami skuteczności.</li>
+            <li><strong>Połączenie</strong> – dopasowanie odbiorców z katalogu oraz instytucji pracujących nad podobnym problemem.</li>
+            <li><strong>Prowadzenie</strong> – etapy procesu z historią decyzji: od oceny przez skierowanie i pilotaż do wdrożenia.</li>
+        </ol>
+    </div>
+</div>
+
+<div class="card dashboard-card mb-3">
+    <div class="card-header dashboard-card-header">Kryteria i wagi</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Kryterium</th><th class="text-center">Waga</th><th>Pytanie</th><th>Reguły (skala 0–5)</th></tr></thead>
+                <tbody>
+                    @foreach (var criterion in AssessmentScorer.Criteria)
+                    {
+                        <tr>
+                            <td class="fw-semibold small">@criterion.Name</td>
+                            <td class="text-center small">@wagi[criterion.Criterion]</td>
+                            <td class="small">@criterion.Question</td>
+                            <td class="small"><ul class="mb-0 ps-3">@foreach (var rule in criterion.Rules) { <li>@rule</li> }</ul></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer small text-muted">
+        Wynik = Σ (ocena / 5 × waga) / Σ wag × 100. Wagi ustawia się w <code>appsettings.json</code> (sekcja
+        <code>Radar:Assessment:Weights</code>). Pewność oceny = kompletność informacji + 10 pkt za analizę AI
+        + 10 pkt za materiały z co najmniej 2 źródeł (maks. 100). Wynik AI jest wskazówką, nie potwierdzeniem innowacyjności.
+    </div>
+</div>
+
+<div class="card dashboard-card mb-3">
+    <div class="card-header dashboard-card-header">Reguły rekomendacji (sprawdzane po kolei, najwyżej 2 ścieżki)</div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>#</th><th>Ścieżka</th><th>Warunek</th></tr></thead>
+            <tbody>
+                @foreach (var rule in RecommendationEngine.Rules)
+                {
+                    <tr><td class="small">@rule.Order</td><td class="small fw-semibold">@UiLabels.Sciezka(rule.Path)</td><td class="small">@rule.Condition</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    @foreach (var path in DevelopmentPathCatalog.Paths)
+    {
+        <div class="col-12 col-lg-6 col-xxl-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-header dashboard-card-header">@path.Name</div>
+                <div class="card-body small">
+                    <p>@path.Description</p>
+                    <div class="fw-semibold">Następne kroki</div>
+                    <ol class="ps-3">@foreach (var step in path.NextSteps) { <li>@step</li> }</ol>
+                    <div class="fw-semibold">Mierniki skuteczności</div>
+                    <ul class="ps-3 mb-2">@foreach (var metric in path.Metrics) { <li>@metric</li> }</ul>
+                    @if (path.TypicalRecipients.Count > 0)
+                    {
+                        <div class="text-muted">Typowi odbiorcy: @string.Join(", ", path.TypicalRecipients.Select(UiLabels.Odbiorca))</div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-xl-6">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Dopasowanie odbiorców (0–100)</div>
+            <div class="card-body small">
+                <ul class="ps-3 mb-2">@foreach (var rule in RecipientMatcher.Rules) { <li>@rule</li> }</ul>
+                <div class="fw-semibold">Sektory i rdzenie słów</div>
+                <ul class="ps-3 mb-0">
+                    @foreach (var (sector, stems) in SectorDictionary.Sectors)
+                    {
+                        <li><strong>@sector</strong>: @string.Join(", ", stems)</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-6">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Źródła danych, założenia i ograniczenia</div>
+            <div class="card-body small">
+                <ul class="ps-3 mb-0">
+                    <li>Źródła: rzeczywiste strony uczelni, repozytoria kodu (GitHub, GitLab, Hugging Face), kanały RSS/Atom z wiadomościami,
+                        Kickstarter oraz zgłoszenia instytucji. Pełna lista – <a href="/zrodla">Źródła danych</a>.</li>
+                    <li>Analiza AI (opcjonalna, lokalna Ollama) dostarcza sygnały: czy to potencjalna innowacja, co może być nowe, rodzaj innowacji.
+                        Nie jest traktowana jako potwierdzenie.</li>
+                    <li>Podobieństwo projektów liczone jest lokalnie (embeddingi i wspólne słownictwo) – bez wysyłania danych na zewnątrz.</li>
+                    <li>Wartości wywnioskowane (np. rodzaj innowacji z AI, typ instytucji z radaru uczelni) są oznaczone w karcie i wymagają potwierdzenia.</li>
+                    <li>Ograniczenia: ocena opiera się na dostępnych informacjach – niski wynik przy niskiej pewności oznacza brak danych;
+                        słownik sektorów nie rozumie kontekstu; katalog startowy zawiera ogólne typy odbiorców, nie konkretne organizacje;
+                        mierniki skuteczności są propozycjami do uzgodnienia z odbiorcą.</li>
+                    <li>Dane kontaktowe twórców są zapisywane wyłącznie za zgodą; system nie pobiera adresów e-mail ze stron.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyDictionary<AssessmentCriterion, int> wagi = new Dictionary<AssessmentCriterion, int>();
+
+    protected override void OnInitialized() => wagi = Options.Value.Assessment.EffectiveWeights();
+}
