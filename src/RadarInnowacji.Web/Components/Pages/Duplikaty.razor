@@ -1,0 +1,167 @@
+@page "/duplikaty"
+@rendermode InteractiveServer
+@inject IProjectService ProjectService
+
+<PageTitle>Duplikaty i powiązania — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Duplikaty i powiązania</h1>
+        <p class="page-subtitle">
+            Ten sam projekt może pojawić się na uczelni, w repozytorium, w wiadomościach
+            i w publikacji. Jednoznaczne przypadki łączymy, niejednoznaczne wymagają Twojej decyzji.
+        </p>
+    </div>
+    <button type="button" class="btn btn-sm btn-primary" @onclick="SzukajAsync" disabled="@analizuje">
+        @(analizuje ? "Szukanie…" : "Wyszukaj duplikaty")
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(komunikat))
+{
+    <div class="alert @(komunikatBlad ? "alert-warning" : "alert-success") py-2 small">@komunikat</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-7">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Oczekujące propozycje połączeń (@propozycje.Count)</div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    Propozycja nie jest faktem – to sygnał do weryfikacji. Akceptacja przenosi odkrycia
+                    do projektu docelowego, ale nie usuwa żadnego materiału.
+                </p>
+                @if (propozycje.Count == 0)
+                {
+                    <div class="empty-panel">Brak oczekujących propozycji.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th>Projekty</th><th>Sygnały</th><th>Data</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var proposal in propozycje)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="small fw-semibold">
+                                                <a href="/projekty/@proposal.SourceProjectId">@proposal.SourceTitle</a>
+                                                → <a href="/projekty/@proposal.TargetProjectId">@proposal.TargetTitle</a>
+                                            </div>
+                                            <span class="badge bg-info text-dark">@proposal.Similarity.ToString("0.00")</span>
+                                        </td>
+                                        <td><span class="small text-muted">@Skróć(proposal.Signals, 140)</span></td>
+                                        <td><span class="small">@UiLabels.DataCzas(proposal.CreatedAt)</span></td>
+                                        <td>
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-success"
+                                                        @onclick="() => AkceptujAsync(proposal.Id)">Akceptuj</button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                        @onclick="() => OdrzucAsync(proposal.Id)">Odrzuć</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-5">
+        <div class="card dashboard-card h-100">
+            <div class="card-header dashboard-card-header">Ostatnie przeszukanie</div>
+            <div class="card-body">
+                @if (wynik is null)
+                {
+                    <div class="empty-panel">Uruchom wyszukiwanie, aby zobaczyć wykryte powiązania.</div>
+                }
+                else
+                {
+                    <dl class="row small mb-3">
+                        <dt class="col-7">Projekty przeanalizowane</dt><dd class="col-5">@wynik.ProjectsAnalyzed</dd>
+                        <dt class="col-7">Kandydaci</dt><dd class="col-5">@wynik.CandidatesFound</dd>
+                        <dt class="col-7">Połączone jednoznacznie</dt><dd class="col-5">@wynik.AutoLinked</dd>
+                        <dt class="col-7">Nowe propozycje</dt><dd class="col-5">@wynik.ProposalsCreated</dd>
+                        <dt class="col-7">Embeddingi</dt><dd class="col-5">@wynik.Provider</dd>
+                    </dl>
+                    <p class="small">@wynik.Message</p>
+                    @if (wynik.Candidates.Count > 0)
+                    {
+                        <h2 class="h6">Znalezione sygnały</h2>
+                        <ul class="list-unstyled small mb-0">
+                            @foreach (var candidate in wynik.Candidates.Take(20))
+                            {
+                                <li class="mb-2">
+                                    <a href="/projekty/@candidate.SourceProjectId">@candidate.SourceTitle</a>
+                                    → <a href="/projekty/@candidate.TargetProjectId">@candidate.TargetTitle</a>
+                                    <div class="text-muted">@candidate.Decision · @Skróć(candidate.Signals, 120)</div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<ProjectMergeProposalModel> propozycje = Array.Empty<ProjectMergeProposalModel>();
+    private DuplicateDetectionResult? wynik;
+    private string komunikat = string.Empty;
+    private bool komunikatBlad;
+    private bool analizuje;
+
+    protected override async Task OnInitializedAsync() => await OdswiezAsync();
+
+    private async Task OdswiezAsync() =>
+        propozycje = (await ProjectService.GetProposalsAsync())
+            .Where(x => x.Status == MergeProposalStatus.Pending)
+            .ToList();
+
+    private async Task SzukajAsync()
+    {
+        analizuje = true;
+        komunikat = string.Empty;
+        try
+        {
+            wynik = await ProjectService.DetectDuplicatesAsync();
+            komunikat = wynik.Message;
+            komunikatBlad = false;
+        }
+        catch (Exception exception)
+        {
+            komunikat = $"Wyszukiwanie nie powiodło się: {exception.Message}";
+            komunikatBlad = true;
+        }
+        finally
+        {
+            analizuje = false;
+            await OdswiezAsync();
+        }
+    }
+
+    private async Task AkceptujAsync(int id)
+    {
+        var accepted = await ProjectService.AcceptProposalAsync(id);
+        komunikat = accepted
+            ? "Połączono projekty. Wszystkie odkrycia pozostały w bazie."
+            : "Nie udało się połączyć projektów.";
+        komunikatBlad = !accepted;
+        await OdswiezAsync();
+    }
+
+    private async Task OdrzucAsync(int id)
+    {
+        var rejected = await ProjectService.RejectProposalAsync(id);
+        komunikat = rejected ? "Odrzucono propozycję. Nie będzie ponawiana." : "Nie znaleziono propozycji.";
+        komunikatBlad = !rejected;
+        await OdswiezAsync();
+    }
+
+    private static string Skróć(string? value, int length) =>
+        string.IsNullOrEmpty(value) ? string.Empty : value.Length <= length ? value : value[..length] + "…";
+}

@@ -20,6 +20,7 @@ public sealed class RadarOptions
     public KickstarterOptions Kickstarter { get; set; } = new();
     public AiOptions Ai { get; set; } = new();
     public CategoryOptions Categories { get; set; } = new();
+    public ProjectOptions Projects { get; set; } = new();
 
     public string EffectiveDatabasePath => string.IsNullOrWhiteSpace(DatabasePath)
         ? RadarDataPaths.DatabasePath
@@ -135,6 +136,16 @@ public sealed class RadarOptions
         if (Environment.GetEnvironmentVariable("RADAR_CATEGORY_EMBEDDING_URL") is { Length: > 0 } embeddingUrl)
         {
             options.Categories.OllamaBaseUrl = embeddingUrl;
+        }
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("RADAR_PROJECTS_ENABLED"), out var projectsEnabled))
+        {
+            options.Projects.Enabled = projectsEnabled;
+        }
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_PROJECTS_INTERVAL"), out var projectsInterval))
+        {
+            options.Projects.IntervalMinutes = projectsInterval;
         }
     }
 }

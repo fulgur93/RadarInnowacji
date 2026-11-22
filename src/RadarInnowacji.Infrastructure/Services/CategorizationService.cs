@@ -290,7 +290,7 @@ public sealed class CategorizationService(
 
         foreach (var project in projects)
         {
-            var text = ProjectText(project);
+            var text = ProjectTextBuilder.Build(project);
             var vector = await embedder.EmbedAsync(text, cancellationToken);
             vectors[project.Id] = vector;
             if (byProject.TryGetValue(project.Id, out var row))
@@ -593,7 +593,7 @@ public sealed class CategorizationService(
     }
 
     private static IEnumerable<string> ProjectTokens(InnovationProject project) =>
-        TextFeatures.Tokenize(ProjectText(project)).Where(x => x.Length >= 4);
+        TextFeatures.Tokenize(ProjectTextBuilder.Build(project)).Where(x => x.Length >= 4);
 
     /// <summary>
     /// Słowa do nazwy kategorii: z opisów i treści materiałów, bez nazw właściciel/repozytorium
@@ -614,70 +614,6 @@ public sealed class CategorizationService(
 
         return TextFeatures.Tokenize(text.ToString())
             .Where(x => x.Length >= 4 && !x.Any(char.IsDigit));
-    }
-
-    private static string ProjectText(InnovationProject project)
-    {
-        var text = new StringBuilder()
-            .AppendLine(project.Title)
-            .AppendLine(project.Description);
-
-        foreach (var link in project.DiscoveryLinks.Take(12))
-        {
-            var discovery = link.Discovery;
-            text.AppendLine(discovery.Title).AppendLine(discovery.Description);
-            // RawContent zawiera np. README repozytorium; bez niego grupowanie repozytoriów
-            // opierałoby się wyłącznie na nazwach właściciel/repozytorium.
-            if (!string.IsNullOrWhiteSpace(discovery.RawContent))
-            {
-                var content = discovery.RawContent;
-                text.AppendLine(content.Length <= 2500 ? content : content[..2500]);
-            }
-
-            foreach (var suggestion in SuggestedCategories(discovery).Take(5))
-            {
-                text.Append("proponowana kategoria AI: ").AppendLine(suggestion);
-            }
-        }
-
-        return text.ToString();
-    }
-
-    private static IReadOnlyList<string> SuggestedCategories(Discovery discovery)
-    {
-        var record = discovery.AiAnalyses
-            .Where(x => x.IsSuccess)
-            .OrderByDescending(x => x.AnalyzedAt)
-            .FirstOrDefault();
-        if (record?.ResultJson is null)
-        {
-            return Array.Empty<string>();
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(record.ResultJson);
-            foreach (var property in document.RootElement.EnumerateObject())
-            {
-                if (!property.Name.Equals("suggestedCategories", StringComparison.OrdinalIgnoreCase) ||
-                    property.Value.ValueKind != JsonValueKind.Array)
-                {
-                    continue;
-                }
-
-                return property.Value.EnumerateArray()
-                    .Where(x => x.ValueKind == JsonValueKind.String)
-                    .Select(x => x.GetString() ?? string.Empty)
-                    .Where(x => x.Length > 0)
-                    .ToList();
-            }
-        }
-        catch (JsonException)
-        {
-            return Array.Empty<string>();
-        }
-
-        return Array.Empty<string>();
     }
 
     private void AddHistory(Category? category, string name, string change, string details, string actor = "System")

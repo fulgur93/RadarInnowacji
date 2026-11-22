@@ -5,6 +5,14 @@ using RadarInnowacji.Web.Components;
 using RadarInnowacji.Web.Services;
 using RadarInnowacji.Worker.Jobs;
 
+// Skrót na pulpicie może uruchomić program z innym katalogiem roboczym – wtedy
+// appsettings.json i wwwroot muszą być szukane w katalogu instalacji.
+if (!File.Exists(Path.Combine(Environment.CurrentDirectory, "appsettings.json")) &&
+    File.Exists(Path.Combine(AppContext.BaseDirectory, "appsettings.json")))
+{
+    Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.AddRadarFileLogging(builder.Configuration);
@@ -12,22 +20,40 @@ builder.Logging.AddRadarFileLogging(builder.Configuration);
 var radarOptions = RadarOptions.Load(builder.Configuration);
 RadarDataPaths.EnsureDirectories();
 
+var instanceFile = new RadarInstanceFile(Path.Combine(RadarDataPaths.AppDataDirectory, "radar.url"));
 SingleInstanceGuard? singleInstanceGuard = null;
+Mutex? installerMutex = null;
 if (radarOptions.SingleInstance)
 {
     var lockPath = Path.Combine(RadarDataPaths.AppDataDirectory, "radar.lock");
     singleInstanceGuard = new SingleInstanceGuard(lockPath);
     if (!singleInstanceGuard.TryAcquire())
     {
-        singleInstanceGuard.Dispose();
-        Console.WriteLine("Radar Innowacji jest już uruchomiony. Zamknij istniejącą instancję przed ponownym uruchomieniem.");
+        // Nie zwalniamy cudzej blokady (Dispose usuwa plik) – po prostu pokazujemy działającą instancję.
+        var runningUrl = instanceFile.TryRead();
+        Console.WriteLine(runningUrl is null
+            ? "Radar Innowacji jest już uruchomiony."
+            : $"Radar Innowacji jest już uruchomiony pod adresem {runningUrl}.");
+        if (runningUrl is not null && radarOptions.OpenBrowser)
+        {
+            BrowserLauncher.TryOpen(runningUrl, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+        }
+
         return;
+    }
+
+    // Nazwany mutex pozwala instalatorowi (Inno Setup, AppMutex) wykryć działającą aplikację.
+    if (OperatingSystem.IsWindows())
+    {
+        installerMutex = new Mutex(false, "RadarInnowacji_AppMutex");
     }
 }
 
 // Port 0 jest używany w testach integracyjnych – Kestrel wybiera wtedy wolny port.
 var port = radarOptions.Port == 0 ? 0 : PortSelector.FindAvailable(radarOptions.Port);
-builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
+var appUrl = $"http://127.0.0.1:{port}";
+builder.WebHost.UseUrls(appUrl);
+builder.Services.AddSingleton(new RadarRuntimeInfo(port == 0 ? string.Empty : appUrl));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -37,6 +63,7 @@ builder.Services.AddHostedService<PermanentSourcesSeedJob>();
 builder.Services.AddHostedService<BackgroundScanJob>();
 builder.Services.AddHostedService<AiAnalysisJob>();
 builder.Services.AddHostedService<CategoryAnalysisJob>();
+builder.Services.AddHostedService<ProjectAnalysisJob>();
 
 var app = builder.Build();
 
@@ -54,16 +81,53 @@ app.MapRazorComponents<App>()
 
 var startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
     .CreateLogger("RadarInnowacji.Startup");
-startupLogger.LogInformation("Radar Innowacji nasłuchuje na http://127.0.0.1:{Port}", port);
+startupLogger.LogInformation("Radar Innowacji nasłuchuje na {Url}", appUrl);
 
-if (radarOptions.OpenBrowser && port != 0)
+if (port != 0)
 {
     app.Lifetime.ApplicationStarted.Register(() =>
-        BrowserLauncher.TryOpen($"http://127.0.0.1:{port}", startupLogger));
+    {
+        if (singleInstanceGuard is not null)
+        {
+            instanceFile.Write(appUrl);
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"Radar Innowacji działa pod adresem {appUrl}");
+        Console.WriteLine("Aby zakończyć: użyj przycisku „Zamknij aplikację” w menu albo zamknij to okno (Ctrl+C).");
+        Console.WriteLine();
+        if (radarOptions.OpenBrowser)
+        {
+            BrowserLauncher.TryOpen(appUrl, startupLogger);
+        }
+    });
 }
 
-await app.RunAsync();
+if (OperatingSystem.IsWindows() && port != 0 && !Console.IsOutputRedirected)
+{
+    try
+    {
+        Console.Title = $"Radar Innowacji – {appUrl}";
+    }
+    catch (IOException)
+    {
+        // Brak okna konsoli – tytuł nie jest wymagany.
+    }
+}
 
-singleInstanceGuard?.Dispose();
+try
+{
+    await app.RunAsync();
+}
+finally
+{
+    if (singleInstanceGuard is not null)
+    {
+        instanceFile.Delete();
+        singleInstanceGuard.Dispose();
+    }
+
+    installerMutex?.Dispose();
+}
 
 public partial class Program;

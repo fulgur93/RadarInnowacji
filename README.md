@@ -3,8 +3,11 @@
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
 repozytoriach kodu źródłowego, wiadomościach internetowych oraz na portalach crowdfundingowych.
 
-**Status projektu: ETAP 6 – DYNAMICZNE KATEGORIE I ŚWIEŻOŚĆ (zaimplementowany, oczekuje na akceptację).**
-Etapy 0–5 zostały wcześniej zaakceptowane przez zamawiającego. W Etapie 3, na wyraźne
+**Status projektu: ETAP 8 – INSTALATOR I FINALIZACJA (zaimplementowany, oczekuje na akceptację).**
+Etapy 0–7 zostały zaakceptowane przez zamawiającego (Etap 7 – wraz z poleceniem rozpoczęcia Etapu 8).
+
+Dla osoby oceniającej: instalacja i uruchomienie – [`docs/INSTALACJA.md`](docs/INSTALACJA.md),
+scenariusz pokazu – [`docs/DEMO.md`](docs/DEMO.md). W Etapie 3, na wyraźne
 życzenie zamawiającego, dodano też osobny, czwarty radar portali crowdfundingowych
 (zmiana wobec pierwotnie trójradarowego interfejsu z `src/MainJob.txt`).
 
@@ -33,14 +36,24 @@ RadarInnowacji/
 │   ├── RadarInnowacji.Tests/         # testy jednostkowe usług i danych demo
 │   └── RadarInnowacji.IntegrationTests/ # testy hosta HTTP i stron
 ├── docs/
+│   ├── INSTALACJA.md                 # instalacja, uruchomienie, zamykanie, deinstalacja
+│   └── DEMO.md                       # scenariusz demonstracji (~10 min)
 └── installer/
+    ├── RadarInnowacji.iss            # skrypt Inno Setup 6
+    ├── build-installer.ps1           # budowanie na Windows (dotnet publish + ISCC)
+    ├── build-installer.sh            # budowanie na Linuksie (dotnet publish + ISCC przez wine)
+    ├── publish/win-x64/              # wynik dotnet publish (ignorowany przez git)
+    └── Output/RadarInnowacji-Setup.exe  # wynik kompilacji instalatora (ignorowany przez git)
 ```
 
 Uzasadnienie odstępstwa: `Worker` jest biblioteką klas z implementacjami `BackgroundService`
 rejestrowanymi w procesie `Web`. Dzięki temu instalator uruchamia tylko jeden proces,
 co upraszcza zamykanie aplikacji i obsługę portu.
 
-## Wymagania wstępne (na tym etapie)
+## Wymagania wstępne (środowisko programistyczne)
+
+Zainstalowana aplikacja (instalator) nie wymaga niczego poza Windows 10/11 x64 – zob. `docs/INSTALACJA.md`.
+Do budowania ze źródeł:
 
 - .NET SDK **10.0.404** (zainstalowany lokalnie w `/home/fulgur/.dotnet`)
 - `dotnet` musi być w `PATH`: `export PATH=/home/fulgur/.dotnet:$PATH`
@@ -389,6 +402,109 @@ Znane ograniczenia Etapu 6:
   indeksu wektorowego (poza zakresem prototypu),
 - trendy i łączenie materiałów z kilku źródeł w jeden projekt pozostają w Etapie 7.
 
+## Wspólny radar i trendy (Etap 7)
+
+- migracja `20261122013820_Etap7ProjectLinks`: `InnovationProject.MergedIntoProjectId`,
+  encje `ProjectMergeProposal` (status `Pending`/`Accepted`/`Rejected`) i `ProjectMergeHistory`,
+- **Wspólny radar projektów** (`/projekty`): jeden widok projektów ze wszystkich radarów i źródeł;
+  filtry tekst, radar, źródło, kategoria, **min. liczba źródeł**, sortowanie i stronicowanie,
+- **szczegóły projektu** (`/projekty/{id}`): ścieżka powiązań (radary i źródła), wszystkie
+  materiały źródłowe z linkami do oryginałów, podobne projekty, propozycje i historia połączeń.
+  Z karty odkrycia prowadzi link do projektu,
+- **deduplikacja** (`IProjectService.DetectDuplicatesAsync`, cyklicznie `ProjectAnalysisJob`
+  co `Projects:IntervalMinutes`, ręcznie na stronie **Duplikaty i powiązania**): jednoznaczne
+  sygnały (wspólny `ExternalId`/`ContentHash`) łączą projekty automatycznie; poza nimi automatyczne
+  połączenie wymaga jednocześnie embeddingu `≥ AutoMergeSimilarity` (0,93), podobieństwa tytułu ≥ 0,70
+  i opisu ≥ 0,45. Pozostałe pary z wynikiem ważonym (0,5 embedding + 0,3 tytuł + 0,2 opis)
+  `≥ ProposalSimilarity` (0,62) trafiają wyłącznie do propozycji wymagających akceptacji. Łączenie przenosi powiązania odkryć do projektu
+  docelowego, **nie usuwa żadnych materiałów** i zapisuje historię; odrzucona para nie jest proponowana ponownie,
+- **trendy** (`ITrendService`): liczone na unikalnych projektach, a nie na liczbie pobranych
+  materiałów; bieżący, niepełny miesiąc jest pomijany. Każdy wynik zawiera liczbę monitorowanych
+  źródeł i częstotliwość skanowania. Strona „Kategorie i trendy” pokazuje najaktywniejsze
+  i najszybciej rosnące kategorie, nowe kategorie, wykres aktywności (SVG) oraz porównanie kategorii
+  (projekty, odkrycia, źródła, średnia świeżość),
+- konfiguracja w sekcji `Radar:Projects` (`Enabled`, `IntervalMinutes`, `ProposalSimilarity`,
+  `AutoMergeSimilarity`, `SimilarProjectsLimit`, `TrendMonths`).
+
+Znane ograniczenia Etapu 7:
+
+- podobieństwo projektów korzysta z tego samego embeddera co Etap 6 (domyślnie hashingowego),
+  więc parafrazy bez wspólnych słów nie są rozpoznawane jako duplikaty,
+- połączenie projektów nie ma operacji „cofnij” w interfejsie (historia jest zapisywana w bazie),
+- trendy miesięczne są wiarygodne dopiero po kilku miesiącach regularnego skanowania.
+
+## Instalator i finalizacja (Etap 8)
+
+- **publikacja self-contained win-x64** (`dotnet publish -c Release -r win-x64`, ok. 117 MB):
+  zawiera runtime .NET 10 i natywny SQLite; nie wymaga SDK ani runtime na maszynie docelowej.
+  Plik wykonywalny `RadarInnowacji.Web.exe` ma własną ikonę (`radar.ico`),
+- **Inno Setup** (`installer/RadarInnowacji.iss`): instalacja bez uprawnień administratora do
+  `%LOCALAPPDATA%\Programs\RadarInnowacji`, język polski, skrót na pulpicie i w menu Start,
+  instrukcje jako `.txt`, opcja „Uruchom po instalacji”. Instalator i deinstalator wykrywają
+  działającą aplikację (`AppMutex=RadarInnowacji_AppMutex`). Deinstalator pyta, czy usunąć dane
+  użytkownika (domyślnie **Nie**; deinstalacja cicha zawsze zachowuje dane),
+- **uruchamianie**: tylko `127.0.0.1`, obsługa zajętego portu (5080–5089), automatyczne
+  otwarcie przeglądarki, katalog programu jako katalog zawartości (działa także przy starcie
+  z innym katalogiem roboczym),
+- **druga instancja**: ponowne kliknięcie skrótu nie uruchamia drugiego serwera – odczytuje
+  adres działającej instancji z `radar.url` (akceptowany wyłącznie adres `http` na loopback)
+  i otwiera na nim przeglądarkę,
+- **zamykanie**: przycisk „Zamknij aplikację” w menu bocznym (z potwierdzeniem), zamknięcie okna
+  konsoli lub `Ctrl+C`. Przy zamknięciu usuwane są `radar.lock` i `radar.url`, baza pozostaje,
+- **dane użytkownika** poza katalogiem instalacji: `%LOCALAPPDATA%\RadarInnowacji`
+  (`radar.db`, `logs\`); strona Ustawienia pokazuje rzeczywisty adres aplikacji i ścieżki,
+- dokumentacja: `docs/INSTALACJA.md` (instalacja, uruchomienie, zamykanie, deinstalacja,
+  rozwiązywanie problemów) i `docs/DEMO.md` (scenariusz pokazu ok. 10 min).
+
+### Budowanie instalatora
+
+Windows (wymaga .NET SDK 10.0.404 i Inno Setup 6 – tylko na maszynie budującej):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\build-installer.ps1
+```
+
+Linux (wymaga wine i Inno Setup 6 zainstalowanego w prefiksie wine):
+
+```bash
+installer/build-installer.sh            # testy + publikacja + ISCC
+ISCC="/ścieżka/ISCC.exe" WINEPREFIX=~/.wine-inno installer/build-installer.sh --skip-tests
+```
+
+Wynik: `installer/Output/RadarInnowacji-Setup.exe`.
+
+### Test na czystym Windows (lista kontrolna)
+
+Maszyna bez .NET i bez narzędzi programistycznych (np. Windows Sandbox lub świeża maszyna wirtualna):
+
+1. `RadarInnowacji-Setup.exe` → instalacja bez UAC, skrót na pulpicie istnieje.
+2. Skrót → okno konsoli z adresem, przeglądarka otwiera dashboard.
+3. Źródła danych → Załaduj przykłady → dashboard pokazuje dane DEMO.
+4. Ponowne kliknięcie skrótu → otwiera się karta z tą samą instancją (bez drugiego serwera).
+5. „Zamknij aplikację” → okno konsoli znika; `%LOCALAPPDATA%\RadarInnowacji\radar.db` istnieje.
+6. Ponowny start → dane DEMO nadal są widoczne.
+7. Deinstalacja z odpowiedzią „Nie” → folder danych zostaje; ponowna instalacja widzi dane.
+8. Deinstalacja z odpowiedzią „Tak” → folder `%LOCALAPPDATA%\RadarInnowacji` usunięty.
+
+Wynik weryfikacji Etapu 8 (Linux, 22.11.2026):
+
+- `dotnet build`: 0 błędów; testy: 181 jednostkowych + 16 integracyjnych, 0 niepowodzeń,
+- publikacja win-x64 self-contained: OK (`RadarInnowacji.Web.exe`, `e_sqlite3.dll`, `wwwroot`),
+- ta sama logika startowa zweryfikowana na publikacji self-contained linux-x64 uruchomionej
+  z katalogu `/`: dashboard, `/projekty`, `/duplikaty`, `/kategorie`, `/ustawienia`, zasoby
+  statyczne – HTTP 200; druga instancja wypisała adres działającej i zakończyła się kodem 0;
+  po SIGTERM proces zakończył się, a `radar.lock`/`radar.url` zostały usunięte,
+- **nie wykonano** na tym środowisku: kompilacji `RadarInnowacji-Setup.exe` (brak Inno Setup)
+  ani testu instalacji na czystym Windows – do wykonania według listy kontrolnej powyżej.
+
+Znane ograniczenia Etapu 8:
+
+- instalator nie jest podpisany cyfrowo – Windows SmartScreen pokaże ostrzeżenie,
+- aplikacja działa w oknie konsoli (widoczny adres i logi; zamknięcie okna zamyka aplikację);
+  brak ikony w zasobniku systemowym,
+- nazwa pliku wykonywalnego to `RadarInnowacji.Web.exe` (zmiana nazwy zestawu wymagałaby
+  zmiany nazw zasobów statycznych Blazora); skróty mają nazwę „Radar Innowacji”.
+
 ## Co działa w Etapie 0 (zaakceptowanym)
 
 - uruchamialna aplikacja Blazor Web App z Interactive Server,
@@ -463,7 +579,6 @@ Znane ograniczenia Etapu 6:
 
 ## Dalsze etapy
 
-Zgodnie z `src/MainJob.txt`: Etapy 3 (repozytoria), 4 (wiadomości) i 5 (silnik AI)
-są zaimplementowane; kolejny jest Etap 6 – dynamiczne kategorie i świeżość
-(embeddings, grupowanie projektów, `FreshnessScore`).
+Zgodnie z `src/MainJob.txt` Etap 8 jest ostatnim etapem planu. Po jego akceptacji możliwe
+są wyłącznie poprawki zgłoszone po teście na czystym Windows.
 Każdy etap jest wykonywany wyłącznie po akceptacji poprzedniego.

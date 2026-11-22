@@ -1,0 +1,382 @@
+@page "/projekty/{Id:int}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components
+@inject IProjectService ProjectService
+
+<PageTitle>Szczegóły projektu — Radar Innowacji</PageTitle>
+
+@if (model is null)
+{
+    <div class="card dashboard-card"><div class="card-body">
+        <h1 class="h5">Nie znaleziono projektu</h1>
+        <p>Projekt o identyfikatorze @Id nie istnieje.</p>
+        <a href="/projekty" class="btn btn-sm btn-outline-primary">Powrót do projektów</a>
+    </div></div>
+}
+else
+{
+    var project = model.Project;
+    <div class="page-header">
+        <div>
+            <h1>@project.Title</h1>
+            <p class="page-subtitle">
+                @model.SourceCount @(model.SourceCount == 1 ? "źródło" : "źródła") ·
+                @model.Discoveries.Count @(model.Discoveries.Count == 1 ? "odkrycie" : "odkryć") ·
+                @string.Join(", ", model.Radars.Select(UiLabels.Radar))
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-sm btn-outline-primary" href="/projekty">Wszystkie projekty</a>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="WykryjPonownieAsync" disabled="@analizuje">
+                @(analizuje ? "Szukanie…" : "Wyszukaj powiązania")
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(komunikat))
+    {
+        <div class="alert @(komunikatBlad ? "alert-warning" : "alert-success") py-2 small">@komunikat</div>
+    }
+
+    @if (model.MergedInto is { } cel)
+    {
+        <div class="alert alert-secondary py-2 small">
+            Ten projekt został połączony z projektem
+            <a href="/projekty/@cel.Id">@cel.Title</a>. Materiały i historia pozostały zachowane.
+        </div>
+    }
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-8">
+            <div class="card dashboard-card mb-3">
+                <div class="card-header dashboard-card-header">Ścieżka powiązań projektu</div>
+                <div class="card-body">
+                    @if (model.Discoveries.Count == 0)
+                    {
+                        <div class="empty-panel">Brak powiązanych odkryć.</div>
+                    }
+                    else
+                    {
+                        var nodes = model.Discoveries.Take(14).ToList();
+                        <svg viewBox="0 0 760 250" role="img" aria-label="Graf powiązań projektu z odkryciami"
+                             style="width:100%;height:auto;max-height:280px">
+                            @for (var index = 0; index < nodes.Count; index++)
+                            {
+                                var angle = 2 * Math.PI * index / nodes.Count - Math.PI / 2;
+                                var x = 380 + 280 * Math.Cos(angle);
+                                var y = 125 + 92 * Math.Sin(angle);
+                                <line x1="380" y1="125" x2="@x.ToString("0.0", CultureInfo.InvariantCulture)"
+                                      y2="@y.ToString("0.0", CultureInfo.InvariantCulture)"
+                                      stroke="#adb5bd" stroke-width="1.5" />
+                                <circle cx="@x.ToString("0.0", CultureInfo.InvariantCulture)"
+                                        cy="@y.ToString("0.0", CultureInfo.InvariantCulture)" r="6"
+                                        fill="@KolorRadaru(nodes[index].Radar)" />
+                                @Tekst(x, y - 12, Skróć(nodes[index].SourceName, 20))
+                            }
+                            <ellipse cx="380" cy="125" rx="105" ry="34" fill="#0d6efd" opacity="0.10" stroke="#0d6efd" />
+                            @Tekst(380, 121, Skróć(project.Title, 30), "middle", "13", "600", "#212529")
+                            @Tekst(380, 139, $"{model.SourceCount} źródeł")
+                        </svg>
+                        @if (model.Discoveries.Count > nodes.Count)
+                        {
+                            <p class="small text-muted mb-0">Graf pokazuje @nodes.Count z @model.Discoveries.Count powiązań; pełna lista znajduje się poniżej.</p>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="card dashboard-card mb-3">
+                <div class="card-header dashboard-card-header">Materiały źródłowe tego projektu (@model.Discoveries.Count)</div>
+                <div class="card-body table-responsive">
+                    <p class="small text-muted">
+                        Każdy wiersz to osobne odkrycie z zachowanym adresem URL, datą i statusem analizy.
+                        Żaden materiał nie został usunięty podczas łączenia projektów.
+                    </p>
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Materiał</th>
+                                <th>Radar i źródło</th>
+                                <th>Data publikacji</th>
+                                <th>Odkrycie</th>
+                                <th>AI</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in model.Discoveries)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="/odkrycia/@item.DiscoveryId" class="fw-semibold">@item.Title</a>
+                                        @if (item.IsDemo) { <span class="badge badge-demo">DEMO</span> }
+                                        <div class="small text-muted">Podobieństwo do projektu: @item.Similarity.ToString("0.00")</div>
+                                    </td>
+                                    <td>
+                                        <div class="small">@UiLabels.Radar(item.Radar)</div>
+                                        <div class="small text-muted">@item.SourceName</div>
+                                    </td>
+                                    <td><span class="small">@UiLabels.Data(item.PublishedAt)</span></td>
+                                    <td><span class="small">@UiLabels.Data(item.DiscoveredAt)</span></td>
+                                    <td>
+                                        @if (item.AIProcessed)
+                                        {
+                                            <span class="badge @(item.IsPotentialInnovation ? "bg-info text-dark" : "bg-light text-dark border")">
+                                                @(item.AIConfidence?.ToString() ?? "?")%
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="small text-muted">@UiLabels.Processing(item.ProcessingStatus)</span>
+                                        }
+                                        <div class="small text-muted">@UiLabels.Status(item.Status)</div>
+                                    </td>
+                                    <td>
+                                        <a class="btn btn-sm btn-outline-primary" href="@item.SourceUrl" target="_blank"
+                                           rel="noopener noreferrer">Źródło</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card dashboard-card">
+                <div class="card-header dashboard-card-header">Podobne projekty (@model.SimilarProjects.Count)</div>
+                <div class="card-body">
+                    @if (model.SimilarProjects.Count == 0)
+                    {
+                        <span class="text-muted small">Brak projektów powyżej progu podobieństwa.</span>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th>Projekt</th><th>Podobieństwo</th><th>Dlaczego</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var similar in model.SimilarProjects)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <a href="/projekty/@similar.ProjectId">@similar.Title</a>
+                                                <div class="small text-muted">@similar.SourceCount źródeł · @similar.DiscoveryCount odkryć</div>
+                                            </td>
+                                            <td><span class="badge bg-info text-dark">@similar.Similarity.ToString("0.00")</span></td>
+                                            <td><span class="small text-muted">@similar.Reason</span></td>
+                                            <td>
+                                                @if (similar.HasPendingProposal)
+                                                {
+                                                    <span class="badge bg-warning text-dark">Propozycja oczekuje</span>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                            @onclick="() => ZaproponujAsync(similar.ProjectId)">Zaproponuj połączenie</button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card dashboard-card mb-3">
+                <div class="card-header dashboard-card-header">Profil projektu</div>
+                <div class="card-body">
+                    <p class="small">@(string.IsNullOrWhiteSpace(project.Description) ? "Brak opisu projektu." : project.Description)</p>
+                    <dl class="row small mb-0">
+                        <dt class="col-6">Świeżość</dt><dd class="col-6">@project.FreshnessScore.ToString("0.0")%</dd>
+                        <dt class="col-6">Pierwsze odkrycie</dt><dd class="col-6">@UiLabels.Data(project.FirstDiscoveredAt)</dd>
+                        <dt class="col-6">Początek projektu</dt><dd class="col-6">@UiLabels.Data(project.EarliestKnownDate)</dd>
+                        <dt class="col-6">Ostatnia aktywność</dt><dd class="col-6">@UiLabels.Data(project.LastActivityAt)</dd>
+                        <dt class="col-6">Analizy AI</dt><dd class="col-6">@model.AiProcessedCount / @model.Discoveries.Count</dd>
+                    </dl>
+                    <hr />
+                    @if (model.Categories.Count == 0)
+                    {
+                        <span class="text-muted small">Brak przypisanych kategorii.</span>
+                    }
+                    else
+                    {
+                        @foreach (var category in model.Categories)
+                        {
+                            <a class="badge bg-primary me-1 mb-1" href="/kategorie">@category</a>
+                        }
+                    }
+                    <p class="small text-muted mt-2 mb-0">
+                        Świeżość zależy wyłącznie od dat. Wynik AI nie jest potwierdzeniem innowacyjności.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card dashboard-card mb-3">
+                <div class="card-header dashboard-card-header">Propozycje połączeń</div>
+                <div class="card-body">
+                    @if (model.MergeProposals.Count == 0)
+                    {
+                        <span class="text-muted small">Brak propozycji dla tego projektu.</span>
+                    }
+                    else
+                    {
+                        @foreach (var proposal in model.MergeProposals)
+                        {
+                            <div class="border rounded p-2 mb-2">
+                                <div class="small fw-semibold">
+                                    <a href="/projekty/@proposal.SourceProjectId">@proposal.SourceTitle</a>
+                                    → <a href="/projekty/@proposal.TargetProjectId">@proposal.TargetTitle</a>
+                                </div>
+                                <div class="small text-muted">@EtykietaStatusu(proposal.Status) · podobieństwo @proposal.Similarity.ToString("0.00")</div>
+                                <div class="small text-muted">@Skróć(proposal.Signals, 160)</div>
+                                @if (proposal.Status == MergeProposalStatus.Pending)
+                                {
+                                    <div class="d-flex gap-1 mt-2">
+                                        <button type="button" class="btn btn-sm btn-outline-success"
+                                                @onclick="() => AkceptujAsync(proposal.Id)">Akceptuj</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                @onclick="() => OdrzucAsync(proposal.Id)">Odrzuć</button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="card dashboard-card mb-3">
+                <div class="card-header dashboard-card-header">Historia połączeń</div>
+                <div class="card-body">
+                    @if (model.History.Count == 0)
+                    {
+                        <span class="text-muted small">Projekt nie był jeszcze łączony.</span>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled small mb-0">
+                            @foreach (var entry in model.History)
+                            {
+                                <li class="mb-2">
+                                    <div>@UiLabels.DataCzas(entry.ChangedAt) · @entry.Actor</div>
+                                    <div class="text-muted">
+                                        <a href="/projekty/@entry.SourceProjectId">@entry.SourceTitle</a> →
+                                        <a href="/projekty/@entry.TargetProjectId">@entry.TargetTitle</a>
+                                    </div>
+                                    <div class="text-muted">@Skróć(entry.Details, 120)</div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+
+            <div class="card dashboard-card">
+                <div class="card-header dashboard-card-header">Uwaga o danych</div>
+                <div class="card-body small text-muted mb-0">
+                    Wiele odkryć projektu oznacza więcej śladów w źródłach, nie dowód większej innowacyjności.
+                    Liczba śladów zależy od monitorowanych źródeł i częstotliwości skanowania.
+                    Niejednoznaczne podobieństwa nie są łączone bez Twojej decyzji.
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ProjectDetailsModel? model;
+    private string komunikat = string.Empty;
+    private bool komunikatBlad;
+    private bool analizuje;
+
+    protected override async Task OnInitializedAsync() => await OdswiezAsync();
+
+    private async Task OdswiezAsync() => model = await ProjectService.GetDetailsAsync(Id);
+
+    private async Task ZaproponujAsync(int innyProjektId)
+    {
+        var proposal = await ProjectService.ProposeMergeAsync(Id, innyProjektId);
+        komunikat = proposal is null
+            ? "Propozycja została już zgłoszona lub projekt nie może być połączony."
+            : "Dodano propozycję połączenia. Zostaje ona do Twojej akceptacji.";
+        komunikatBlad = proposal is null;
+        await OdswiezAsync();
+    }
+
+    private async Task AkceptujAsync(int proposalId)
+    {
+        var accepted = await ProjectService.AcceptProposalAsync(proposalId);
+        komunikat = accepted
+            ? "Połączono projekty. Odkrycia i historia pozostały zachowane."
+            : "Nie udało się połączyć projektów.";
+        komunikatBlad = !accepted;
+        await OdswiezAsync();
+    }
+
+    private async Task OdrzucAsync(int proposalId)
+    {
+        var rejected = await ProjectService.RejectProposalAsync(proposalId);
+        komunikat = rejected ? "Odrzucono propozycję. Nie będzie ponawiana." : "Nie znaleziono propozycji.";
+        komunikatBlad = !rejected;
+        await OdswiezAsync();
+    }
+
+    private async Task WykryjPonownieAsync()
+    {
+        analizuje = true;
+        komunikat = string.Empty;
+        try
+        {
+            var result = await ProjectService.DetectDuplicatesAsync();
+            komunikat = result.Message;
+            komunikatBlad = false;
+        }
+        catch (Exception exception)
+        {
+            komunikat = $"Wyszukiwanie powiązań nie powiodło się: {exception.Message}";
+            komunikatBlad = true;
+        }
+        finally
+        {
+            analizuje = false;
+            await OdswiezAsync();
+        }
+    }
+
+    private static string EtykietaStatusu(MergeProposalStatus status) => status switch
+    {
+        MergeProposalStatus.Pending => "Oczekuje na decyzję",
+        MergeProposalStatus.Accepted => "Zaakceptowana",
+        _ => "Odrzucona"
+    };
+
+    private static MarkupString Tekst(
+        double x,
+        double y,
+        string content,
+        string anchor = "middle",
+        string size = "10",
+        string weight = "400",
+        string color = "#495057") =>
+        new($"<text x=\"{x.ToString("0.0", CultureInfo.InvariantCulture)}\" " +
+            $"y=\"{y.ToString("0.0", CultureInfo.InvariantCulture)}\" " +
+            $"text-anchor=\"{anchor}\" font-size=\"{size}\" font-weight=\"{weight}\" fill=\"{color}\">" +
+            $"{System.Net.WebUtility.HtmlEncode(content)}</text>");
+
+    private static string KolorRadaru(RadarKind radar) => radar switch
+    {
+        RadarKind.Uczelnia => "#0d6efd",
+        RadarKind.Repozytorium => "#198754",
+        RadarKind.Wiadomosci => "#fd7e14",
+        RadarKind.Crowdfunding => "#6f42c1",
+        _ => "#6c757d"
+    };
+
+    private static string Skróć(string? value, int length) =>
+        string.IsNullOrEmpty(value) ? string.Empty : value.Length <= length ? value : value[..length] + "…";
+}

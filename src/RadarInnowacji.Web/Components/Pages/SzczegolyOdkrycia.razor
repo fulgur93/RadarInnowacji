@@ -186,6 +186,34 @@ else
                 </div>
             </div>
 
+            @if (model.Projects.Count > 0)
+            {
+                <div class="card dashboard-card mb-3">
+                    <div class="card-header dashboard-card-header">Projekt</div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0 small">
+                            @foreach (var project in model.Projects)
+                            {
+                                <li class="mb-2">
+                                    <a href="/projekty/@project.ProjectId">@project.Title</a>
+                                    <div class="text-muted">
+                                        @project.SourceCount @(project.SourceCount == 1 ? "źródło" : "źródła") ·
+                                        świeżość @project.FreshnessScore.ToString("0.0")%
+                                    </div>
+                                    @if (project.MergedIntoProjectId is { } cel)
+                                    {
+                                        <div class="text-muted">Połączony z <a href="/projekty/@cel">projektem @cel</a></div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                        <p class="small text-muted mb-0 mt-2">
+                            Na stronie projektu zobaczysz wszystkie powiązane materiały i ich źródła.
+                        </p>
+                    </div>
+                </div>
+            }
+
             @if (model.RelatedDiscoveries.Count > 0)
             {
                 <div class="card dashboard-card mb-3">

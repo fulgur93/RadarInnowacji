@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject IOptions<RadarOptions> Options
 @inject IAiAnalysisService AiService
+@inject RadarInnowacji.Web.Services.RadarRuntimeInfo RuntimeInfo
 
 <PageTitle>Ustawienia — Radar Innowacji</PageTitle>
 
@@ -16,7 +17,8 @@
     <div class="card-header dashboard-card-header">Konfiguracja lokalna</div>
     <div class="card-body">
         <dl class="row mb-0 small">
-            <dt class="col-sm-4">Port nasłuchiwania</dt><dd class="col-sm-8">@Options.Value.Port (tylko 127.0.0.1)</dd>
+            <dt class="col-sm-4">Adres aplikacji</dt><dd class="col-sm-8"><code>@(string.IsNullOrEmpty(RuntimeInfo.Url) ? "port dynamiczny" : RuntimeInfo.Url)</code></dd>
+            <dt class="col-sm-4">Port preferowany</dt><dd class="col-sm-8">@Options.Value.Port (tylko 127.0.0.1; gdy zajęty – kolejny wolny)</dd>
             <dt class="col-sm-4">Otwieranie przeglądarki</dt><dd class="col-sm-8">@(Options.Value.OpenBrowser ? "Włączone" : "Wyłączone")</dd>
             <dt class="col-sm-4">Blokada drugiej instancji</dt><dd class="col-sm-8">@(Options.Value.SingleInstance ? "Włączona" : "Wyłączona")</dd>
             <dt class="col-sm-4">Baza danych</dt><dd class="col-sm-8"><code>@Options.Value.EffectiveDatabasePath</code></dd>

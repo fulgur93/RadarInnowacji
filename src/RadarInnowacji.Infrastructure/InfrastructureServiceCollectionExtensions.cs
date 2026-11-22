@@ -40,6 +40,8 @@ public static class InfrastructureServiceCollectionExtensions
                 : provider.GetRequiredService<LocalHashEmbeddingService>();
         });
         services.AddScoped<ICategorizationService, CategorizationService>();
+        services.AddScoped<IProjectService, ProjectService>();
+        services.AddScoped<ITrendService, TrendService>();
 
         services.AddHttpClient("RadarSources", client =>
         {

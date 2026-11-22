@@ -119,6 +119,11 @@ body {
     color: #8299b8;
 }
 
+.shutdown-box {
+    padding: 0.6rem 0.7rem;
+    color: #c9d6e8;
+}
+
 .app-main {
     flex: 1;
     min-width: 0;
@@ -300,6 +305,15 @@ body {
     border: 1px solid #efc36b;
     margin-left: 0.35rem;
     font-size: 0.65rem;
+}
+
+.kolor-kwadrat {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 2px;
+    margin-right: 0.3rem;
+    vertical-align: middle;
 }
 
 .app-content .form-label-sm,

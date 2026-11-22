@@ -1,0 +1,219 @@
+@page "/projekty"
+@rendermode InteractiveServer
+@inject IProjectService ProjectService
+@inject ISourceService SourceService
+@inject ICategoryService CategoryService
+
+<PageTitle>Projekty — Radar Innowacji</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Wspólny radar projektów</h1>
+        <p class="page-subtitle">
+            Jeden widok odkryć ze wszystkich radarów i źródeł. Projekt może mieć wiele powiązanych materiałów –
+            każdy z nich pozostaje dostępny ze swoim źródłem i datą.
+        </p>
+    </div>
+    <span class="topbar-badge d-none d-md-inline">@wyniki.TotalCount projektów</span>
+</div>
+
+<div class="card dashboard-card mb-3">
+    <div class="card-header dashboard-card-header">Filtry projektów</div>
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <label class="form-label form-label-sm">Tytuł lub opis</label>
+                <input class="form-control form-control-sm" @bind="szukanaFraza" placeholder="np. czujniki powietrza" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Radar</label>
+                <select class="form-select form-select-sm" @bind="radar">
+                    <option value="">Wszystkie radary</option>
+                    @foreach (var value in Enum.GetValues<RadarKind>())
+                    {
+                        <option value="@value">@UiLabels.Radar(value)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Źródło</label>
+                <select class="form-select form-select-sm" @bind="zrodlo">
+                    <option value="">Wszystkie źródła</option>
+                    @foreach (var source in zrodla)
+                    {
+                        <option value="@source.Id">@source.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Kategoria</label>
+                <select class="form-select form-select-sm" @bind="kategoria">
+                    <option value="">Wszystkie</option>
+                    @foreach (var category in kategorie)
+                    {
+                        <option value="@category.CategoryId">@category.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Min. liczba źródeł</label>
+                <input type="number" class="form-control form-control-sm" min="1" max="20" @bind="minimalnaLiczbaZrodel" />
+            </div>
+        </div>
+        <div class="row g-2 mt-1">
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Data odkrycia od</label>
+                <input type="date" class="form-control form-control-sm" @bind="dataOd" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Sortowanie</label>
+                <select class="form-select form-select-sm" @bind="sortowanie">
+                    <option value="@ProjectSort.DiscoveredAt">Data odkrycia</option>
+                    <option value="@ProjectSort.SourceCount">Liczba źródeł</option>
+                    <option value="@ProjectSort.FreshnessScore">Świeżość</option>
+                    <option value="@ProjectSort.Title">Tytuł</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Kierunek</label>
+                <select class="form-select form-select-sm" @bind="malejaco">
+                    <option value="true">Malejąco</option>
+                    <option value="false">Rosnąco</option>
+                </select>
+            </div>
+            <div class="col-md-5 d-flex align-items-end gap-2">
+                <button type="button" class="btn btn-sm btn-primary" @onclick="SzukajAsync">Szukaj</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="WyczyśćAsync">Wyczyść</button>
+                <span class="small text-muted align-self-center">
+                    Filtr „Min. liczba źródeł” pokazuje projekty znalezione w kilku niezależnych miejscach.
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card dashboard-card">
+    <div class="card-header dashboard-card-header d-flex justify-content-between">
+        <span>Wyniki: @wyniki.TotalCount</span>
+        <span>Strona @wyniki.PageNumber z @wyniki.PageCount</span>
+    </div>
+    <div class="card-body table-responsive">
+        @if (wyniki.Items.Count == 0)
+        {
+            <div class="empty-panel">
+                Brak projektów spełniających kryteria. Uruchom skanowanie źródeł i grupowanie kategorii
+                albo zmień filtry. Projekty są tworzone z odkryć, które nie mają jeszcze przypisanego projektu.
+            </div>
+        }
+        else
+        {
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Projekt</th>
+                        <th>Źródła</th>
+                        <th>Odkrycia</th>
+                        <th>Kategorie</th>
+                        <th>Świeżość</th>
+                        <th>Pierwsze odkrycie</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var project in wyniki.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/projekty/@project.Id" class="fw-semibold">@project.Title</a>
+                                @if (project.IsDemo) { <span class="badge badge-demo">DEMO</span> }
+                                @if (project.MergedIntoProjectId is { } merged)
+                                {
+                                    <span class="badge bg-secondary">Połączony z @merged</span>
+                                }
+                                <div class="small text-muted text-break">@Skróć(project.Description, 110)</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">@project.SourceCount</span>
+                                <div class="small text-muted">@string.Join(", ", project.SourceNames.Take(2))</div>
+                                <div class="small text-muted">@string.Join(", ", project.Radars.Select(UiLabels.Radar).Take(2))</div>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">@project.DiscoveryCount</span></td>
+                            <td><span class="small">@string.Join(", ", project.Categories.Take(3))</span></td>
+                            <td><span class="badge bg-light text-dark border">@project.FreshnessScore.ToString("0.0")%</span></td>
+                            <td><span class="small">@UiLabels.Data(project.FirstDiscoveredAt)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(wyniki.PageNumber <= 1)"
+                        @onclick="PoprzedniaAsync">Poprzednia</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(wyniki.PageNumber >= wyniki.PageCount)"
+                        @onclick="NastepnaAsync">Następna</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string szukanaFraza = string.Empty;
+    private string radar = string.Empty;
+    private string zrodlo = string.Empty;
+    private string kategoria = string.Empty;
+    private int? minimalnaLiczbaZrodel;
+    private DateTime? dataOd;
+    private ProjectSort sortowanie = ProjectSort.DiscoveredAt;
+    private bool malejaco = true;
+
+    private ProjectPage wyniki = new();
+    private IReadOnlyList<Source> zrodla = Array.Empty<Source>();
+    private IReadOnlyList<CategoryCount> kategorie = Array.Empty<CategoryCount>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        zrodla = await SourceService.GetAllAsync();
+        kategorie = await CategoryService.GetAllWithCountsAsync();
+        await SzukajAsync();
+    }
+
+    private ProjectFilter UtworzFilter(int strona) => new()
+    {
+        SearchText = szukanaFraza,
+        Radar = Enum.TryParse<RadarKind>(radar, out var wybranyRadar) ? wybranyRadar : null,
+        SourceId = int.TryParse(zrodlo, out var wybraneZrodlo) ? wybraneZrodlo : null,
+        CategoryId = int.TryParse(kategoria, out var wybranaKategoria) ? wybranaKategoria : null,
+        MinSourceCount = minimalnaLiczbaZrodel,
+        DateFrom = dataOd,
+        SortBy = sortowanie,
+        SortDescending = malejaco,
+        PageNumber = strona,
+        PageSize = 20
+    };
+
+    private async Task SzukajAsync() => wyniki = await ProjectService.GetPageAsync(UtworzFilter(1));
+
+    private async Task WyczyśćAsync()
+    {
+        szukanaFraza = string.Empty;
+        radar = string.Empty;
+        zrodlo = string.Empty;
+        kategoria = string.Empty;
+        minimalnaLiczbaZrodel = null;
+        dataOd = null;
+        sortowanie = ProjectSort.DiscoveredAt;
+        malejaco = true;
+        await SzukajAsync();
+    }
+
+    private async Task PoprzedniaAsync()
+    {
+        if (wyniki.PageNumber > 1) wyniki = await ProjectService.GetPageAsync(UtworzFilter(wyniki.PageNumber - 1));
+    }
+
+    private async Task NastepnaAsync()
+    {
+        if (wyniki.PageNumber < wyniki.PageCount) wyniki = await ProjectService.GetPageAsync(UtworzFilter(wyniki.PageNumber + 1));
+    }
+
+    private static string Skróć(string value, int length) =>
+        string.IsNullOrEmpty(value) ? string.Empty : value.Length <= length ? value : value[..length] + "…";
+}

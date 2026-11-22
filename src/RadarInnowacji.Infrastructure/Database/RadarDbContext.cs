@@ -23,6 +23,8 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
     public DbSet<CategoryProposal> CategoryProposals => Set<CategoryProposal>();
     public DbSet<CategoryProposalProject> CategoryProposalProjects => Set<CategoryProposalProject>();
     public DbSet<CategoryHistory> CategoryHistories => Set<CategoryHistory>();
+    public DbSet<ProjectMergeProposal> ProjectMergeProposals => Set<ProjectMergeProposal>();
+    public DbSet<ProjectMergeHistory> ProjectMergeHistories => Set<ProjectMergeHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -102,6 +104,11 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
             entity.Property(x => x.Description).HasMaxLength(ContentLimits.MaxDescriptionLength);
             entity.HasIndex(x => x.FreshnessScore);
             entity.HasIndex(x => x.FirstDiscoveredAt);
+            entity.HasIndex(x => x.MergedIntoProjectId);
+            entity.HasOne(x => x.MergedInto)
+                .WithMany()
+                .HasForeignKey(x => x.MergedIntoProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<DiscoveryProject>(entity =>
@@ -216,6 +223,36 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
             entity.Property(x => x.Actor).IsRequired().HasMaxLength(50);
             entity.HasIndex(x => x.ChangedAt);
             entity.HasIndex(x => x.CategoryId);
+        });
+
+        modelBuilder.Entity<ProjectMergeProposal>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Signals).IsRequired().HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.Property(x => x.Signature).IsRequired().HasMaxLength(500);
+            entity.Property(x => x.DecisionNote).HasMaxLength(ContentLimits.MaxErrorLength);
+            entity.HasOne(x => x.SourceProject)
+                .WithMany()
+                .HasForeignKey(x => x.SourceProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.TargetProject)
+                .WithMany()
+                .HasForeignKey(x => x.TargetProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.Signature).IsUnique();
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<ProjectMergeHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SourceTitle).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.TargetTitle).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Details).IsRequired().HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.Property(x => x.Actor).IsRequired().HasMaxLength(50);
+            entity.HasIndex(x => x.ChangedAt);
+            entity.HasIndex(x => x.TargetProjectId);
         });
     }
 }

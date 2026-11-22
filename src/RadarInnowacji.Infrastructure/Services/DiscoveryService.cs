@@ -39,6 +39,7 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
             .Include(x => x.Source)
             .Include(x => x.Repository)
             .Include(x => x.ProjectLinks).ThenInclude(x => x.Project).ThenInclude(x => x.CategoryLinks).ThenInclude(x => x.Category)
+            .Include(x => x.ProjectLinks).ThenInclude(x => x.Project).ThenInclude(x => x.DiscoveryLinks)
             .Include(x => x.AiAnalyses)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
@@ -85,6 +86,21 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
                 .Select(x => x.Category.Name)
                 .Distinct()
                 .OrderBy(x => x)
+                .ToList(),
+            Projects = discovery.ProjectLinks
+                .GroupBy(x => x.InnovationProjectId)
+                .Select(group => new DiscoveryProjectLinkItem
+                {
+                    ProjectId = group.Key,
+                    Title = group.First().Project.Title,
+                    FreshnessScore = group.First().Project.FreshnessScore,
+                    SourceCount = group.First().Project.DiscoveryLinks
+                        .Select(link => link.Discovery.SourceId)
+                        .Distinct()
+                        .Count(),
+                    MergedIntoProjectId = group.First().Project.MergedIntoProjectId
+                })
+                .OrderByDescending(x => x.SourceCount)
                 .ToList(),
             RelatedDiscoveries = related.Select(MapToListItem).ToList(),
             SimilarDiscoveries = similar.Where(x => related.All(r => r.Id != x.Id)).Select(MapToListItem).ToList(),

@@ -1,0 +1,38 @@
+@inject IHostApplicationLifetime Lifetime
+@inject ILogger<ShutdownButton> Logger
+
+<div class="shutdown-box">
+    @if (zamknieta)
+    {
+        <div class="small">Aplikacja została zamknięta. Możesz zamknąć kartę przeglądarki.</div>
+    }
+    else if (potwierdzenie)
+    {
+        <div class="small mb-2">Zamknąć Radar Innowacji? Trwające skanowanie zostanie przerwane.</div>
+        <button type="button" class="btn btn-sm btn-danger me-1" @onclick="Zamknij">Zamknij</button>
+        <button type="button" class="btn btn-sm btn-outline-light" @onclick="() => potwierdzenie = false">Anuluj</button>
+    }
+    else
+    {
+        <button type="button" class="btn btn-sm btn-outline-light w-100" @onclick="() => potwierdzenie = true">
+            Zamknij aplikację
+        </button>
+    }
+</div>
+
+@code {
+    private bool potwierdzenie;
+    private bool zamknieta;
+
+    private void Zamknij()
+    {
+        zamknieta = true;
+        Logger.LogInformation("Zamknięcie aplikacji zlecone z interfejsu użytkownika.");
+        // Krótkie opóźnienie, aby komunikat dotarł do przeglądarki przed zatrzymaniem serwera.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            Lifetime.StopApplication();
+        });
+    }
+}
