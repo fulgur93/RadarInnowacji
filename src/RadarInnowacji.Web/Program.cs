@@ -36,6 +36,7 @@ builder.Services.AddHostedService<DatabaseMigrationJob>();
 builder.Services.AddHostedService<PermanentSourcesSeedJob>();
 builder.Services.AddHostedService<BackgroundScanJob>();
 builder.Services.AddHostedService<AiAnalysisJob>();
+builder.Services.AddHostedService<CategoryAnalysisJob>();
 
 var app = builder.Build();
 

@@ -1,15 +1,28 @@
 @page "/kategorie"
 @rendermode InteractiveServer
 @inject ICategoryService CategoryService
+@inject ICategorizationService CategorizationService
+@inject IOptions<RadarOptions> Options
 
 <PageTitle>Kategorie i trendy — Radar Innowacji</PageTitle>
 
 <div class="page-header">
     <div>
         <h1>Kategorie i trendy</h1>
-        <p class="page-subtitle">Grupy tematyczne przypisane do projektów innowacyjnych.</p>
+        <p class="page-subtitle">Grupy tematyczne wykryte na podstawie podobieństwa projektów.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <span class="badge bg-light text-dark border">Embeddingi: @Options.Value.Categories.EmbeddingProvider</span>
+        <button type="button" class="btn btn-sm btn-primary" disabled="@analizuje" @onclick="PrzeliczAsync">
+            @(analizuje ? "Grupowanie…" : "Przelicz kategorie")
+        </button>
     </div>
 </div>
+
+@if (!string.IsNullOrEmpty(komunikat))
+{
+    <div class="alert @(komunikatBlad ? "alert-warning" : "alert-success") py-2 small">@komunikat</div>
+}
 
 <div class="row g-3">
     <div class="col-12 col-xl-7">
@@ -49,11 +62,203 @@
     </div>
 </div>
 
+<div class="card dashboard-card mt-3">
+    <div class="card-header dashboard-card-header">Propozycje nowych kategorii (@propozycje.Count)</div>
+    <div class="card-body">
+        <p class="small text-muted">
+            Propozycje powstają z grup podobnych projektów. Nie są faktem ani potwierdzoną kategorią –
+            kategoria jest tworzona dopiero po akceptacji. Odrzuconych propozycji nie powtarzamy.
+        </p>
+        @if (propozycje.Count == 0)
+        {
+            <div class="empty-panel">Brak propozycji. Uruchom grupowanie lub dodaj więcej podobnych projektów.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr><th>Propozycja</th><th>Projekty</th><th>Podobieństwo</th><th>Data</th><th>Status</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var proposal in propozycje)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="fw-semibold">@proposal.Name</span>
+                                    <div class="small text-muted">@proposal.Description</div>
+                                    <div class="small text-muted">Słowa kluczowe: @string.Join(", ", proposal.Keywords)</div>
+                                </td>
+                                <td>
+                                    <span class="small">@string.Join(", ", proposal.Projects.Take(4))</span>
+                                    @if (proposal.Projects.Count > 4)
+                                    {
+                                        <span class="small text-muted"> i jeszcze @(proposal.Projects.Count - 4)</span>
+                                    }
+                                </td>
+                                <td><span class="badge bg-info text-dark">@proposal.Similarity.ToString("0.00")</span></td>
+                                <td><span class="small">@UiLabels.DataCzas(proposal.CreatedAt)</span></td>
+                                <td><span class="badge @BadgePropozycji(proposal.Status)">@EtykietaPropozycji(proposal.Status)</span></td>
+                                <td>
+                                    @if (proposal.Status == CategoryProposalStatus.Pending)
+                                    {
+                                        <div class="d-flex gap-1">
+                                            <button type="button" class="btn btn-sm btn-outline-success"
+                                                    @onclick="() => ZatwierdzAsync(proposal.Id)">Akceptuj</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                    @onclick="() => OdrzucAsync(proposal.Id)">Odrzuć</button>
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="card dashboard-card mt-3">
+    <div class="card-header dashboard-card-header">Grupy podobnych projektów (@grupy.Count)</div>
+    <div class="card-body">
+        @if (grupy.Count == 0)
+        {
+            <div class="empty-panel">Brak grup. Grupy powstają podczas cyklicznego grupowania projektów.</div>
+        }
+        else
+        {
+            @foreach (var group in grupy)
+            {
+                <div class="mb-3">
+                    <div class="small fw-semibold">Grupa @group.Id · @group.ProjectCount projektów · podobieństwo @group.AverageSimilarity.ToString("0.00")</div>
+                    <ul class="small mb-0">
+                        @foreach (var project in group.Projects)
+                        {
+                            <li>
+                                @if (project.DiscoveryId is { } discoveryId)
+                                {
+                                    <a href="/odkrycia/@discoveryId">@project.Title</a>
+                                }
+                                else
+                                {
+                                    <span>@project.Title</span>
+                                }
+                                <span class="text-muted">· świeżość @project.FreshnessScore.ToString("0.0")%</span>
+                                @if (project.Categories.Count > 0)
+                                {
+                                    <span class="text-muted">· @string.Join(", ", project.Categories)</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<div class="card dashboard-card mt-3">
+    <div class="card-header dashboard-card-header">Historia kategorii (@historia.Count)</div>
+    <div class="card-body">
+        @if (historia.Count == 0)
+        {
+            <div class="empty-panel">Brak zmian w katalogu kategorii.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Data</th><th>Zmiana</th><th>Kategoria</th><th>Szczegóły</th><th>Źródło</th></tr></thead>
+                    <tbody>
+                        @foreach (var entry in historia)
+                        {
+                            <tr>
+                                <td><span class="small">@UiLabels.DataCzas(entry.ChangedAt)</span></td>
+                                <td><span class="small fw-semibold">@entry.Change</span></td>
+                                <td><span class="small">@entry.CategoryName</span></td>
+                                <td><span class="small text-muted">@entry.Details</span></td>
+                                <td><span class="small">@entry.Actor</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
 @code {
     private IReadOnlyList<CategoryCount> kategorie = Array.Empty<CategoryCount>();
+    private IReadOnlyList<CategoryProposalModel> propozycje = Array.Empty<CategoryProposalModel>();
+    private IReadOnlyList<ProjectCluster> grupy = Array.Empty<ProjectCluster>();
+    private IReadOnlyList<CategoryHistoryItem> historia = Array.Empty<CategoryHistoryItem>();
+    private string komunikat = string.Empty;
+    private bool komunikatBlad;
+    private bool analizuje;
 
     protected override async Task OnInitializedAsync()
     {
-        kategorie = await CategoryService.GetAllWithCountsAsync();
+        await OdswiezAsync();
     }
+
+    private async Task OdswiezAsync()
+    {
+        kategorie = await CategoryService.GetAllWithCountsAsync();
+        propozycje = await CategorizationService.GetProposalsAsync();
+        grupy = await CategorizationService.GetClustersAsync();
+        historia = await CategorizationService.GetHistoryAsync();
+    }
+
+    private async Task PrzeliczAsync()
+    {
+        analizuje = true;
+        komunikat = string.Empty;
+        try
+        {
+            var result = await CategorizationService.AnalyzeAsync();
+            komunikat = result.Message;
+            komunikatBlad = false;
+            await OdswiezAsync();
+        }
+        catch (Exception exception)
+        {
+            komunikat = $"Grupowanie nie powiodło się: {exception.Message}";
+            komunikatBlad = true;
+        }
+        finally
+        {
+            analizuje = false;
+        }
+    }
+
+    private async Task ZatwierdzAsync(int id)
+    {
+        var accepted = await CategorizationService.AcceptProposalAsync(id);
+        komunikat = accepted ? "Zaakceptowano propozycję i przypisano projekty do kategorii." : "Nie znaleziono oczekującej propozycji.";
+        komunikatBlad = !accepted;
+        await OdswiezAsync();
+    }
+
+    private async Task OdrzucAsync(int id)
+    {
+        var rejected = await CategorizationService.RejectProposalAsync(id);
+        komunikat = rejected ? "Odrzucono propozycję. Nie będzie ona powtarzana." : "Nie znaleziono oczekującej propozycji.";
+        komunikatBlad = !rejected;
+        await OdswiezAsync();
+    }
+
+    private static string BadgePropozycji(CategoryProposalStatus status) => status switch
+    {
+        CategoryProposalStatus.Pending => "bg-warning text-dark",
+        CategoryProposalStatus.Accepted => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    private static string EtykietaPropozycji(CategoryProposalStatus status) => status switch
+    {
+        CategoryProposalStatus.Pending => "Oczekuje na decyzję",
+        CategoryProposalStatus.Accepted => "Zaakceptowana",
+        _ => "Odrzucona"
+    };
 }

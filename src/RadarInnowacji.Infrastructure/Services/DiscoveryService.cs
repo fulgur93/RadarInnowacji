@@ -148,6 +148,12 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
                 link.Project.CategoryLinks.Any(category => category.CategoryId == filter.CategoryId.Value)));
         }
 
+        if (filter.MinFreshnessScore is not null)
+        {
+            query = query.Where(x => x.ProjectLinks.Any(link =>
+                link.Project.FreshnessScore >= filter.MinFreshnessScore.Value));
+        }
+
         if (filter.SourceId is not null)
         {
             query = query.Where(x => x.SourceId == filter.SourceId.Value);
@@ -197,6 +203,11 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
             DiscoverySort.AIConfidence => descending
                 ? query.OrderByDescending(x => x.AIConfidence)
                 : query.OrderBy(x => x.AIConfidence),
+            DiscoverySort.FreshnessScore => descending
+                ? query.OrderByDescending(x => x.ProjectLinks
+                    .Max(link => (double?)link.Project.FreshnessScore) ?? 0)
+                : query.OrderBy(x => x.ProjectLinks
+                    .Max(link => (double?)link.Project.FreshnessScore) ?? 0),
             DiscoverySort.Source => descending
                 ? query.OrderByDescending(x => x.Source.Name)
                 : query.OrderBy(x => x.Source.Name),
@@ -225,6 +236,9 @@ public sealed class DiscoveryService(RadarDbContext db) : IDiscoveryService
             .Distinct()
             .OrderBy(x => x)
             .ToList(),
+        FreshnessScore = discovery.ProjectLinks.Count > 0
+            ? discovery.ProjectLinks.Max(x => x.Project.FreshnessScore)
+            : null,
         Status = discovery.Status,
         ProcessingStatus = discovery.ProcessingStatus,
         IsPotentialInnovation = discovery.IsPotentialInnovation,

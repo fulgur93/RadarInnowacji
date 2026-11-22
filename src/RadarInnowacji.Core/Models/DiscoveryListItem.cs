@@ -16,6 +16,7 @@ public sealed class DiscoveryListItem
     public string? Organization { get; set; }
     public IReadOnlyList<string> Technologies { get; set; } = Array.Empty<string>();
     public IReadOnlyList<string> Categories { get; set; } = Array.Empty<string>();
+    public double? FreshnessScore { get; set; }
     public DiscoveryStatus Status { get; set; }
     public ProcessingStatus ProcessingStatus { get; set; }
     public bool IsPotentialInnovation { get; set; }

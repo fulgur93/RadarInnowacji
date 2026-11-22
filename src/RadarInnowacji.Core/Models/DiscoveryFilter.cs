@@ -10,6 +10,7 @@ public sealed class DiscoveryFilter
     public DateTime? DateFrom { get; set; }
     public DateTime? DateTo { get; set; }
     public int? CategoryId { get; set; }
+    public double? MinFreshnessScore { get; set; }
     public int? SourceId { get; set; }
     public ProcessingStatus? ProcessingStatus { get; set; }
     public DiscoveryStatus? Status { get; set; }

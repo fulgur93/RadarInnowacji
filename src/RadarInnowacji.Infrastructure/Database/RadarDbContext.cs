@@ -19,6 +19,10 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
     public DbSet<ScanHistory> ScanHistory => Set<ScanHistory>();
     public DbSet<AiAnalysisRecord> AiAnalyses => Set<AiAnalysisRecord>();
     public DbSet<RepositoryInfo> Repositories => Set<RepositoryInfo>();
+    public DbSet<ProjectEmbedding> ProjectEmbeddings => Set<ProjectEmbedding>();
+    public DbSet<CategoryProposal> CategoryProposals => Set<CategoryProposal>();
+    public DbSet<CategoryProposalProject> CategoryProposalProjects => Set<CategoryProposalProject>();
+    public DbSet<CategoryHistory> CategoryHistories => Set<CategoryHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -162,6 +166,56 @@ public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : D
                 .HasForeignKey(x => x.DiscoveryId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.DiscoveryId, x.AnalyzedAt });
+        });
+
+        modelBuilder.Entity<ProjectEmbedding>(entity =>
+        {
+            entity.HasKey(x => x.InnovationProjectId);
+            entity.Property(x => x.Vector).IsRequired().HasDefaultValue("[]");
+            entity.Property(x => x.Model).IsRequired().HasMaxLength(300);
+            entity.HasOne(x => x.Project)
+                .WithOne()
+                .HasForeignKey<ProjectEmbedding>(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.ClusterId);
+            entity.HasIndex(x => x.Model);
+        });
+
+        modelBuilder.Entity<CategoryProposal>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Description).HasMaxLength(ContentLimits.MaxDescriptionLength);
+            entity.Property(x => x.Keywords).HasDefaultValue("[]");
+            entity.Property(x => x.Signature).IsRequired().HasMaxLength(500);
+            entity.HasIndex(x => x.Signature).IsUnique();
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<CategoryProposalProject>(entity =>
+        {
+            entity.HasKey(x => new { x.CategoryProposalId, x.InnovationProjectId });
+            entity.HasOne(x => x.Proposal)
+                .WithMany(x => x.ProjectLinks)
+                .HasForeignKey(x => x.CategoryProposalId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.InnovationProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.InnovationProjectId);
+        });
+
+        modelBuilder.Entity<CategoryHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CategoryName).IsRequired().HasMaxLength(ContentLimits.MaxTitleLength);
+            entity.Property(x => x.Change).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.Details).HasMaxLength(600);
+            entity.Property(x => x.Actor).IsRequired().HasMaxLength(50);
+            entity.HasIndex(x => x.ChangedAt);
+            entity.HasIndex(x => x.CategoryId);
         });
     }
 }

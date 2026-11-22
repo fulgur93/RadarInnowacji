@@ -30,6 +30,16 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IScanService, ScanService>();
         services.AddScoped<IAiAnalysisService, OllamaAiAnalysisService>();
         services.AddScoped<IAiAnalysisQueueService, AiAnalysisQueueService>();
+        services.AddScoped<LocalHashEmbeddingService>();
+        services.AddScoped<OllamaEmbeddingService>();
+        services.AddScoped<IEmbeddingService>(provider =>
+        {
+            var categories = provider.GetRequiredService<IOptions<RadarOptions>>().Value.Categories;
+            return categories.EmbeddingProvider.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+                ? provider.GetRequiredService<OllamaEmbeddingService>()
+                : provider.GetRequiredService<LocalHashEmbeddingService>();
+        });
+        services.AddScoped<ICategorizationService, CategorizationService>();
 
         services.AddHttpClient("RadarSources", client =>
         {
@@ -43,6 +53,13 @@ public static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddHttpClient("RadarAi", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(300);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("RadarInnowacji/1.0 (prototyp)");
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        });
+
+        services.AddHttpClient("RadarEmbeddings", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(300);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("RadarInnowacji/1.0 (prototyp)");

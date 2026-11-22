@@ -3,8 +3,8 @@
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
 repozytoriach kodu źródłowego, wiadomościach internetowych oraz na portalach crowdfundingowych.
 
-**Status projektu: ETAP 5 – SILNIK AI (zaimplementowany, oczekuje na akceptację).**
-Etapy 0–3 zostały wcześniej zaakceptowane przez zamawiającego. W Etapie 3, na wyraźne
+**Status projektu: ETAP 6 – DYNAMICZNE KATEGORIE I ŚWIEŻOŚĆ (zaimplementowany, oczekuje na akceptację).**
+Etapy 0–5 zostały wcześniej zaakceptowane przez zamawiającego. W Etapie 3, na wyraźne
 życzenie zamawiającego, dodano też osobny, czwarty radar portali crowdfundingowych
 (zmiana wobec pierwotnie trójradarowego interfejsu z `src/MainJob.txt`).
 
@@ -95,13 +95,26 @@ nie musi wywoływać `dotnet ef database update`.
 | `Ai:StartDelaySeconds` | `20` | Opóźnienie pierwszego cyklu analizy po starcie |
 | `Ai:BatchSize` | `5` | Liczba odkryć analizowanych w jednym cyklu |
 | `Ai:MaxContentCharacters` | `4000` | Maksymalna liczba znaków treści wysyłanej do modelu |
+| `Categories:Enabled` | `true` | Włączenie cyklicznego grupowania projektów |
+| `Categories:MinSimilarity` | `0.40` | Próg podobieństwa kosinusowego dla dwóch projektów |
+| `Categories:ExistingCategorySimilarity` | `0.26` | Próg przypisania projektu do istniejącej kategorii |
+| `Categories:MinClusterSize` | `2` | Najmniejsza grupa, która może stać się propozycją kategorii |
+| `Categories:MaxCategoriesPerProject` | `2` | Liczba nowych przypisań do istniejących kategorii na cykl |
+| `Categories:EmbeddingProvider` | `Lokalny` | `Lokalny` (bez modelu) albo `Ollama` (model embeddingowy) |
+| `Categories:OllamaEmbeddingModel` | `multilingual-e5-small` | Model używany przez dostawcę `Ollama` |
+| `Categories:OllamaBaseUrl` | `http://127.0.0.1:11434` | Adres lokalnego Ollamy dla embeddingów |
+| `Categories:IntervalMinutes` | `60` | Częstotliwość grupowania |
 
 Zmienne środowiskowe nadpisują ustawienia uruchomieniowe:
 `RADAR_PORT`, `RADAR_OPEN_BROWSER`, `RADAR_SINGLE_INSTANCE`,
 `RADAR_SCANNING_ENABLED`, `RADAR_SCAN_INTERVAL_MINUTES`,
 `RADAR_SCAN_START_DELAY_SECONDS`, `RADAR_SCAN_MAX_ITEMS`,
 `RADAR_AI_ENABLED`, `RADAR_AI_MODEL`, `RADAR_AI_URL`,
-`RADAR_AI_TIMEOUT`, `RADAR_AI_BATCH`.
+`RADAR_AI_TIMEOUT`, `RADAR_AI_BATCH`,
+`RADAR_CATEGORIES_ENABLED`, `RADAR_CATEGORIES_INTERVAL`,
+`RADAR_CATEGORIES_SIMILARITY`, `RADAR_CATEGORIES_MIN_PROJECTS`,
+`RADAR_CATEGORY_EMBEDDING_PROVIDER`, `RADAR_CATEGORY_EMBEDDING_MODEL`,
+`RADAR_CATEGORY_EMBEDDING_URL`.
 Ścieżki danych można nadpisać przez `RADAR_DATA_DIR`, `RADAR_DB_PATH`, `RADAR_LOG_DIR`.
 
 Dane użytkownika (SQLite i logi) są zapisywane poza katalogiem aplikacji:
@@ -317,6 +330,64 @@ Znane ograniczenia Etapu 5:
 - bez zainstalowanego modelu `qwen3:1.7b` job wstrzymuje analizę z ostrzeżeniem w logu
   i ponawia test połączenia w kolejnym cyklu; należy zainstalować model albo ustawić
   `RADAR_AI_MODEL` na już dostępny.
+
+## Dynamiczne kategorie i świeżość (Etap 6)
+
+- nowe encje i migracja `20261122011402_DynamicCategories`: `ProjectEmbedding`,
+  `CategoryProposal`, `CategoryProposalProject`, `CategoryHistory`,
+- embeddingi: interfejs `IEmbeddingService`. Domyślny `LocalHashEmbeddingService` jest
+  deterministyczny, działa lokalnie bez modelu i bez sieci (feature hashing, 256 wymiarów:
+  słowa, prefiksy 5 znaków i bigramy). Tekst projektu obejmuje tytuł, opis, `RawContent`
+  (np. README) oraz sugerowane kategorie z AI jako **słaby sygnał**, nie jako fakt.
+  Opcjonalnie `OllamaEmbeddingService` wywołuje lokalny `/api/embed` z modelem
+  `multilingual-e5-small`; wybór przez `Radar:Categories:EmbeddingProvider`
+  (`RADAR_CATEGORY_EMBEDDING_PROVIDER=Ollama`). Brak modelu embeddingowego nie blokuje aplikacji,
+- grupowanie: union-find na podobieństwie kosinusowym z filtrem stabilności względem centroidu.
+  Zamiast HDBSCAN użyto prostego algorytmu CPU – w ekosystemie .NET nie znaleziono
+  kompatybilnej biblioteki, a prototyp nie wymaga klastra. Cykl uruchamia `CategoryAnalysisJob`
+  albo przycisk „Przelicz kategorie” na stronie „Kategorie i trendy” (nie przy każdym skanie),
+- odkrycia bez projektu otrzymują prosty projekt 1:1, aby mogły wejść do grupowania;
+  łączenie materiałów z wielu źródeł w jeden projekt pozostaje w Etapie 7. Dane `DEMO` są wyłączone,
+- nowa kategoria powstaje wyłącznie jako `CategoryProposal` (status `Pending`). Akceptacja
+  tworzy `Category` i przypisuje projekty (projekt może należeć do wielu kategorii);
+  odrzucenie zapisuje podpis grupy, więc ta sama propozycja nie jest powtarzana.
+  Nazwy są wydobywane z opisów/treści z filtrem słów ogólnych i zawsze są oznaczone
+  jako propozycja wymagająca weryfikacji,
+- istniejące kategorie: automatyczne przypisanie przy progu `ExistingCategorySimilarity`
+  (maks. 2 nowe kategorie na projekt w cyklu), bez usuwania wcześniejszych przypisań,
+- `FreshnessScore` (0–100) jest liczony wyłącznie z dat:
+  `0.60 × 100e^(-dniOdAktywności/90) + 0.25 × składnikPochodzenia + 0.15 × 100e^(-dniOdkrycia/730)`.
+  Składnik pochodzenia to `100e^(-wiek/365)`, a gdy data powstania jest nieznana – `50`
+  zamiast wymyślonej daty. Ocena AI i status innowacyjności nie wpływają na świeżość,
+- eksplorator odkryć ma filtr `MinFreshnessScore`, sortowanie po świeżości i badge procentowy;
+  strona „Kategorie i trendy” pokazuje propozycje (Akceptuj/Odrzuć), grupy projektów
+  i historię zmian, a „Ustawienia” – konfigurację kategorii,
+- testy: 163 jednostkowe + 16 integracyjne (179 łącznie), 0 niepowodzeń; pozostały
+  3 wcześniejsze ostrzeżenia `xUnit1031` w `RepositoryDetailsTests.cs`.
+
+Jednorazowa weryfikacja na żywo (poza zestawem testów, 22.11.2026):
+
+- kopia rzeczywistej bazy z 853 odkryciami z 10 rzeczywistych źródeł (GitHub, GitLab,
+  AGH, Politechnika Gdańska, UAM, RSS); skanowanie i analiza AI były wyłączone,
+  aby nie modyfikować danych źródłowych,
+- pierwszy cykl: 300 projektów (limit na cykl), 300 embeddingów, 11 grup podobnych projektów
+  i 4 propozycje nowych kategorii; `GET /kategorie` zwróciło HTTP 200 i pokazało grupy,
+  propozycje oraz historię,
+- przykładowe propozycje: „Microsoft ignite26 foundry” (2 projekty, podobieństwo 0.885),
+  „Durga0sandeep gameengine3d” (2, 1.0), „Ism3113 group” (2, 0.853), „Streamline” (3, 0.783).
+  Żadna z nich nie utworzyła kategorii bez akceptacji,
+- świeżość rzeczywistych projektów: 70.0–87.5 (średnia 74.3).
+
+Znane ograniczenia Etapu 6:
+
+- domyślny embedder hashingowy nie rozumie znaczeń słów – grupuje na podstawie
+  współwystępowania cech tekstu. Model wielojęzyczny wymaga instalacji modelu w Ollamie
+  i przełączenia dostawcy na `Ollama`,
+- gdy materiał nie ma opisu, nazwa propozycji może odziedziczyć nazwę repozytorium;
+  dlatego propozycje zawsze wymagają weryfikacji człowieka,
+- przy 300 projektach porównywanie par jest O(n²) na CPU; większa skala wymagałaby
+  indeksu wektorowego (poza zakresem prototypu),
+- trendy i łączenie materiałów z kilku źródeł w jeden projekt pozostają w Etapie 7.
 
 ## Co działa w Etapie 0 (zaakceptowanym)
 

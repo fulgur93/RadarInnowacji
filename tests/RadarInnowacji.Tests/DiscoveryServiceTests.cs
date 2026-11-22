@@ -123,6 +123,38 @@ public class DiscoveryServiceTests
     }
 
     [Fact]
+    public async Task GetPageAsync_FiltrujeWedlutMinimalnejSwiezosci()
+    {
+        using var database = new SqliteTestDatabase();
+        var service = await CreateServiceAsync(database);
+
+        var page = await service.GetPageAsync(new DiscoveryFilter
+        {
+            MinFreshnessScore = 90,
+            PageSize = 100
+        });
+
+        Assert.True(page.TotalCount > 0);
+        Assert.All(page.Items, item => Assert.True(item.FreshnessScore >= 90));
+    }
+
+    [Fact]
+    public async Task GetPageAsync_SortujeWedlutSwiezosci()
+    {
+        using var database = new SqliteTestDatabase();
+        var service = await CreateServiceAsync(database);
+
+        var page = await service.GetPageAsync(new DiscoveryFilter
+        {
+            SortBy = DiscoverySort.FreshnessScore,
+            SortDescending = true,
+            PageSize = 100
+        });
+
+        Assert.Equal(page.Items.Max(x => x.FreshnessScore), page.Items.First().FreshnessScore);
+    }
+
+    [Fact]
     public async Task GetDetailsAsync_ZwracaPowiazaneDaneIOdswiezStatus()
     {
         using var database = new SqliteTestDatabase();

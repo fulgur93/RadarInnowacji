@@ -6,5 +6,6 @@ public enum DiscoverySort
     PublishedAt,
     Title,
     AIConfidence,
+    FreshnessScore,
     Source
 }

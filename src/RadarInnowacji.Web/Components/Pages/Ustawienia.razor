@@ -51,6 +51,24 @@
     </div>
 </div>
 
+<div class="card dashboard-card mt-3">
+    <div class="card-header dashboard-card-header">Kategorie i świeżość</div>
+    <div class="card-body">
+        <dl class="row mb-0 small">
+            <dt class="col-sm-4">Grupowanie projektów</dt>
+            <dd class="col-sm-8">@(Options.Value.Categories.Enabled ? "Włączone" : "Wyłączone")</dd>
+            <dt class="col-sm-4">Dostawca embeddingów</dt><dd class="col-sm-8"><code>@Options.Value.Categories.EmbeddingProvider</code></dd>
+            <dt class="col-sm-4">Model embeddingowy (Ollama)</dt><dd class="col-sm-8"><code>@Options.Value.Categories.OllamaEmbeddingModel</code></dd>
+            <dt class="col-sm-4">Próg podobieństwa projektów</dt><dd class="col-sm-8">@Options.Value.Categories.MinSimilarity.ToString("0.00")</dd>
+            <dt class="col-sm-4">Interwał grupowania</dt><dd class="col-sm-8">@Options.Value.Categories.IntervalMinutes min</dd>
+        </dl>
+        <p class="small text-muted mb-0 mt-3">
+            Domyślny dostawca „Lokalny” nie wymaga Ollamy. Zmiana na „Ollama” wymaga zainstalowania
+            modelu embeddingowego; w przeciwnym razie cykl grupowania zakończy się ostrzeżeniem w logu.
+        </p>
+    </div>
+</div>
+
 @code {
     private string komunikat = string.Empty;
     private bool komunikatBlad;

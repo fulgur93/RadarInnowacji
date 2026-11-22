@@ -19,6 +19,7 @@ public sealed class RadarOptions
     public RepositoryOptions Repositories { get; set; } = new();
     public KickstarterOptions Kickstarter { get; set; } = new();
     public AiOptions Ai { get; set; } = new();
+    public CategoryOptions Categories { get; set; } = new();
 
     public string EffectiveDatabasePath => string.IsNullOrWhiteSpace(DatabasePath)
         ? RadarDataPaths.DatabasePath
@@ -95,6 +96,45 @@ public sealed class RadarOptions
         if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_AI_BATCH"), out var aiBatch))
         {
             options.Ai.BatchSize = aiBatch;
+        }
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("RADAR_CATEGORIES_ENABLED"), out var categoriesEnabled))
+        {
+            options.Categories.Enabled = categoriesEnabled;
+        }
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_CATEGORIES_INTERVAL"), out var categoriesInterval))
+        {
+            options.Categories.IntervalMinutes = categoriesInterval;
+        }
+
+        if (double.TryParse(
+                Environment.GetEnvironmentVariable("RADAR_CATEGORIES_SIMILARITY"),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var similarity))
+        {
+            options.Categories.MinSimilarity = similarity;
+        }
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("RADAR_CATEGORIES_MIN_PROJECTS"), out var minProjects))
+        {
+            options.Categories.MinClusterSize = minProjects;
+        }
+
+        if (Environment.GetEnvironmentVariable("RADAR_CATEGORY_EMBEDDING_PROVIDER") is { Length: > 0 } provider)
+        {
+            options.Categories.EmbeddingProvider = provider;
+        }
+
+        if (Environment.GetEnvironmentVariable("RADAR_CATEGORY_EMBEDDING_MODEL") is { Length: > 0 } embeddingModel)
+        {
+            options.Categories.OllamaEmbeddingModel = embeddingModel;
+        }
+
+        if (Environment.GetEnvironmentVariable("RADAR_CATEGORY_EMBEDDING_URL") is { Length: > 0 } embeddingUrl)
+        {
+            options.Categories.OllamaBaseUrl = embeddingUrl;
         }
     }
 }

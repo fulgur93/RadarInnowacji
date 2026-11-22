@@ -104,6 +104,7 @@
                     <option value="@DiscoverySort.PublishedAt">Data publikacji</option>
                     <option value="@DiscoverySort.Title">Tytuł</option>
                     <option value="@DiscoverySort.AIConfidence">Pewność AI</option>
+                    <option value="@DiscoverySort.FreshnessScore">Świeżość</option>
                     <option value="@DiscoverySort.Source">Źródło</option>
                 </select>
             </div>
@@ -113,6 +114,11 @@
                     <option value="true">Malejąco</option>
                     <option value="false">Rosnąco</option>
                 </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">Min. świeżość (%)</label>
+                <input type="number" class="form-control form-control-sm" min="0" max="100"
+                       @bind="minimalnaSwiezosc" @bind:event="oninput" />
             </div>
             <div class="col-md-4 d-flex align-items-end gap-2">
                 <div class="form-check mb-1">
@@ -191,7 +197,13 @@
                             </td>
                             <td><span class="small">@item.SourceName</span></td>
                             <td><span class="small">@UiLabels.Data(item.PublishedAt)</span></td>
-                            <td><span class="small">@UiLabels.Data(item.DiscoveredAt)</span></td>
+                            <td>
+                                <span class="small">@UiLabels.Data(item.DiscoveredAt)</span>
+                                @if (item.FreshnessScore is { } swiezosc)
+                                {
+                                    <div><span class="badge bg-light text-dark border">Świeżość: @swiezosc.ToString("0.0")%</span></div>
+                                }
+                            </td>
                             <td><span class="badge @BadgeStatus(item.Status)">@UiLabels.Status(item.Status)</span></td>
                             <td>
                                 @if (item.IsPotentialInnovation)
@@ -235,6 +247,7 @@
     private string analizaAi = string.Empty;
     private DiscoverySort sortowanie = DiscoverySort.DiscoveredAt;
     private bool malejaco = true;
+    private int? minimalnaSwiezosc;
     private bool tylkoPotencjalne;
     private bool pokazSzum;
 
@@ -275,6 +288,7 @@
         }
 
         if (int.TryParse(kategoria, out var categoryId)) filter.CategoryId = categoryId;
+        if (minimalnaSwiezosc is not null) filter.MinFreshnessScore = minimalnaSwiezosc.Value;
         if (int.TryParse(zrodlo, out var sourceId)) filter.SourceId = sourceId;
         if (Enum.TryParse<ProcessingStatus>(analizaAi, out var processing)) filter.ProcessingStatus = processing;
         if (Enum.TryParse<DiscoveryStatus>(status, out var discoveryStatus)) filter.Status = discoveryStatus;
@@ -297,6 +311,7 @@
         analizaAi = string.Empty;
         sortowanie = DiscoverySort.DiscoveredAt;
         malejaco = true;
+        minimalnaSwiezosc = null;
         tylkoPotencjalne = false;
         await SzukajAsync();
     }
@@ -337,6 +352,7 @@
         }
 
         if (int.TryParse(kategoria, out var categoryId)) filter.CategoryId = categoryId;
+        if (minimalnaSwiezosc is not null) filter.MinFreshnessScore = minimalnaSwiezosc.Value;
         if (int.TryParse(zrodlo, out var sourceId)) filter.SourceId = sourceId;
         if (Enum.TryParse<ProcessingStatus>(analizaAi, out var processing)) filter.ProcessingStatus = processing;
         if (Enum.TryParse<DiscoveryStatus>(status, out var discoveryStatus)) filter.Status = discoveryStatus;
