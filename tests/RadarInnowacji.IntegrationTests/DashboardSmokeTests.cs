@@ -20,7 +20,7 @@ public class DashboardSmokeTests : IClassFixture<RadarWebApplicationFactory>
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("Radar Innowacji", html);
+        Assert.Contains("Dziki gon do innowacji", html);
         Assert.Contains("Dashboard", html);
     }
 

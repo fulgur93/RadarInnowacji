@@ -1,4 +1,8 @@
-# Radar Innowacji
+# Dziki gon do innowacji (Radar Innowacji)
+
+Nazwa wyświetlana aplikacji to **Dziki gon do innowacji** (ikona: dzik). Nazwy techniczne
+(repozytorium, projekty .NET, `RadarInnowacji.Web.exe`, katalog danych `RadarInnowacji`,
+plik `RadarInnowacji-Setup.exe`) pozostały bez zmian, aby zachować dane i zgodność aktualizacji.
 
 Inteligentny system automatycznego wykrywania potencjalnych innowacji w uczelniach,
 repozytoriach kodu źródłowego, wiadomościach internetowych oraz na portalach crowdfundingowych.
@@ -522,7 +526,7 @@ Znane ograniczenia Etapu 8:
 - aplikacja działa w oknie konsoli (widoczny adres i logi; zamknięcie okna zamyka aplikację);
   brak ikony w zasobniku systemowym,
 - nazwa pliku wykonywalnego to `RadarInnowacji.Web.exe` (zmiana nazwy zestawu wymagałaby
-  zmiany nazw zasobów statycznych Blazora); skróty mają nazwę „Radar Innowacji”.
+  zmiany nazw zasobów statycznych Blazora); skróty mają nazwę „Dziki gon do innowacji”.
 
 ## Ocena innowacji i wdrożenia (Etap 9)
 

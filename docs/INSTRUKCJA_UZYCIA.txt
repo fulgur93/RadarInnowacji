@@ -1,7 +1,7 @@
-RADAR INNOWACJI – INSTRUKCJA UŻYCIA
-====================================
+DZIKI GON DO INNOWACJI – INSTRUKCJA UŻYCIA
+==========================================
 
-Radar Innowacji automatycznie wyszukuje potencjalne innowacje w czterech
+Dziki gon do innowacji automatycznie wyszukuje potencjalne innowacje w czterech
 rodzajach źródeł (uczelnie, repozytoria kodu, wiadomości, crowdfunding),
 łączy je w projekty, ocenia według jawnych kryteriów i pomaga skierować
 je do odbiorców – od odkrycia do wdrożenia.
@@ -14,7 +14,7 @@ widoczna w sieci. Internet jest potrzebny tylko do skanowania źródeł.
 ---------------------------
 
 Uruchomienie:
-  1. Kliknij dwukrotnie skrót "Radar Innowacji" na pulpicie lub w menu Start.
+  1. Kliknij dwukrotnie skrót "Dziki gon do innowacji" na pulpicie lub w menu Start.
   2. Otworzy się okno konsoli z adresem, np. http://127.0.0.1:5080.
   3. Przeglądarka sama otworzy Dashboard. Jeśli tak się nie stanie,
      wpisz w przeglądarce adres widoczny w oknie konsoli.
@@ -225,7 +225,7 @@ Aktualne ścieżki i adres aplikacji pokazuje strona "Ustawienia".
     -> Porty 5080–5089 są zajęte; zamknij inne programy lub ustaw
        zmienną RADAR_PORT.
 
-  "Radar Innowacji jest już uruchomiony"
+  "Dziki gon do innowacji jest już uruchomiony"
     -> Aplikacja już działa; użyj otwartej karty lub adresu z komunikatu.
 
   Radar pokazuje mało wyników

@@ -1,4 +1,4 @@
-# Radar Innowacji – instrukcja demonstracji (ok. 10 minut)
+# Dziki gon do innowacji – instrukcja demonstracji (ok. 10 minut)
 
 Scenariusz dla osoby oceniającej. Zakłada, że aplikacja jest zainstalowana (zob. `INSTALACJA`)
 i uruchomiona ze skrótu na pulpicie. Internet jest potrzebny tylko w kroku 6 (rzeczywiste źródła).

@@ -57,11 +57,10 @@ body {
 }
 
 .brand-mark {
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    border: 2px solid #4d8bff;
-    box-shadow: 0 0 0 5px rgba(77, 139, 255, 0.12);
+    box-shadow: 0 0 0 4px rgba(242, 180, 65, 0.15);
     flex: 0 0 auto;
 }
 

@@ -1,4 +1,4 @@
-# Radar Innowacji – instalacja, uruchomienie i odinstalowanie
+# Dziki gon do innowacji – instalacja, uruchomienie i odinstalowanie
 
 ## Wymagania
 
@@ -19,11 +19,11 @@ na analizę AI.
 2. Instalator nie wymaga uprawnień administratora – program trafia do
    `%LOCALAPPDATA%\Programs\RadarInnowacji`.
 3. Zostaw zaznaczoną opcję „Utwórz skrót na pulpicie” i kliknij „Zainstaluj”.
-4. Na ostatniej stronie zaznacz „Uruchom Radar Innowacji” i kliknij „Zakończ”.
+4. Na ostatniej stronie zaznacz „Uruchom Dziki gon do innowacji” i kliknij „Zakończ”.
 
 ## Uruchomienie
 
-1. Kliknij dwukrotnie skrót **Radar Innowacji** na pulpicie (lub w menu Start).
+1. Kliknij dwukrotnie skrót **Dziki gon do innowacji** na pulpicie (lub w menu Start).
 2. Otworzy się okno konsoli z informacją o adresie, np. `http://127.0.0.1:5080`.
 3. Po kilku sekundach przeglądarka automatycznie otworzy dashboard.
    Jeśli tak się nie stanie, wpisz w przeglądarce adres widoczny w oknie konsoli.
@@ -41,7 +41,7 @@ Zasady działania:
 Dowolny z poniższych sposobów zamyka aplikację poprawnie (baza danych zostaje zapisana):
 
 - przycisk **Zamknij aplikację** na dole menu bocznego → „Zamknij”,
-- zamknięcie okna konsoli „Radar Innowacji”,
+- zamknięcie okna konsoli „Dziki gon do innowacji”,
 - `Ctrl+C` w oknie konsoli.
 
 Zamknięcie samej karty przeglądarki NIE zatrzymuje serwera.
@@ -70,8 +70,8 @@ Ollama nie jest częścią instalatora (zgodnie z wymaganiami – brak dużych m
 ## Odinstalowanie
 
 1. Zamknij aplikację (patrz „Zamykanie”). Jeśli działa, deinstalator poprosi o jej zamknięcie.
-2. **Ustawienia systemu → Aplikacje → Zainstalowane aplikacje → Radar Innowacji → Odinstaluj**
-   (albo menu Start → Radar Innowacji → „Odinstaluj Radar Innowacji”).
+2. **Ustawienia systemu → Aplikacje → Zainstalowane aplikacje → Dziki gon do innowacji → Odinstaluj**
+   (albo menu Start → Dziki gon do innowacji → „Odinstaluj Dziki gon do innowacji”).
 3. Deinstalator zapyta: **„Czy usunąć również dane użytkownika?”**
    - **Nie** (domyślnie) – baza i logi zostają w `%LOCALAPPDATA%\RadarInnowacji`
      i zostaną użyte po ponownej instalacji,
@@ -85,6 +85,6 @@ Deinstalacja cicha (`unins000.exe /VERYSILENT`) zawsze zachowuje dane.
 |---|---|
 | Przeglądarka się nie otworzyła | Otwórz ręcznie adres z okna konsoli lub ze strony Ustawienia. |
 | „Nie znaleziono wolnego portu” | Porty 5080–5089 są zajęte – zamknij inne programy lub ustaw `RADAR_PORT`. |
-| Komunikat „Radar Innowacji jest już uruchomiony” | Aplikacja już działa – użyj otwartej karty lub adresu z komunikatu. |
+| Komunikat „Dziki gon do innowacji jest już uruchomiony” | Aplikacja już działa – użyj otwartej karty lub adresu z komunikatu. |
 | Status AI „niedostępne” | Normalne bez Ollamy; materiały czekają w kolejce na analizę. |
 | Inne błędy | Sprawdź najnowszy plik w `%LOCALAPPDATA%\RadarInnowacji\logs\`. |

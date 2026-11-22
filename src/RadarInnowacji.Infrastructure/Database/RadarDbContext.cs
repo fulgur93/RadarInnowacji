@@ -5,7 +5,7 @@ using RadarInnowacji.Core.Models;
 namespace RadarInnowacji.Infrastructure.Database;
 
 /// <summary>
-/// Kontekst danych Radar Innowacji. Dostawca jest wybierany w rejestracji DI,
+/// Kontekst danych aplikacji (Dziki gon do innowacji). Dostawca jest wybierany w rejestracji DI,
 /// co umożliwi przejście z SQLite na PostgreSQL bez zmiany encji.
 /// </summary>
 public sealed class RadarDbContext(DbContextOptions<RadarDbContext> options) : DbContext(options)

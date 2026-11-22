@@ -1,5 +1,5 @@
-RADAR INNOWACJI – INSTRUKCJA WŁĄCZANIA DLA TESTUJĄCYCH
-=======================================================
+DZIKI GON DO INNOWACJI – INSTRUKCJA WŁĄCZANIA DLA TESTUJĄCYCH
+=============================================================
 
 Ta instrukcja opisuje, jak zainstalować i uruchomić aplikację do testów,
 jak szybko sprawdzić, że działa, oraz co dołączyć do zgłoszenia błędu.
@@ -22,12 +22,12 @@ maszyna wirtualna).
      Jeśli pojawi się "System Windows ochronił Twój komputer" (instalator
      nie jest podpisany): "Więcej informacji" -> "Uruchom mimo to".
   2. Zostaw zaznaczone "Utwórz skrót na pulpicie" -> "Zainstaluj".
-  3. Na końcu zaznacz "Uruchom Radar Innowacji" -> "Zakończ".
+  3. Na końcu zaznacz "Uruchom Dziki gon do innowacji" -> "Zakończ".
   4. Otworzy się okno konsoli z adresem (np. http://127.0.0.1:5080),
      a po kilku sekundach przeglądarka z Dashboardem.
      Jeśli przeglądarka się nie otworzy – wpisz adres z okna konsoli.
 
-Kolejne uruchomienia: skrót "Radar Innowacji" na pulpicie lub w menu Start.
+Kolejne uruchomienia: skrót "Dziki gon do innowacji" na pulpicie lub w menu Start.
 
 Zamykanie: przycisk "Zamknij aplikację" na dole menu bocznego -> "Zamknij"
 (albo zamknięcie okna konsoli / Ctrl+C). Zamknięcie samej karty
@@ -36,7 +36,7 @@ przeglądarki NIE wyłącza aplikacji.
 Dane i logi: %LOCALAPPDATA%\RadarInnowacji (radar.db, logs\)
 Program:     %LOCALAPPDATA%\Programs\RadarInnowacji
 
-Odinstalowanie: Ustawienia -> Aplikacje -> Radar Innowacji -> Odinstaluj.
+Odinstalowanie: Ustawienia -> Aplikacje -> Dziki gon do innowacji -> Odinstaluj.
 Pytanie "Czy usunąć również dane użytkownika?":
   "Nie" – dane zostają (przydatne przy teście aktualizacji),
   "Tak" – pełne wyczyszczenie przed kolejnym testem od zera.

@@ -33,8 +33,8 @@ if (radarOptions.SingleInstance)
         // Nie zwalniamy cudzej blokady (Dispose usuwa plik) – po prostu pokazujemy działającą instancję.
         var runningUrl = instanceFile.TryRead();
         Console.WriteLine(runningUrl is null
-            ? "Radar Innowacji jest już uruchomiony."
-            : $"Radar Innowacji jest już uruchomiony pod adresem {runningUrl}.");
+            ? "Dziki gon do innowacji jest już uruchomiony."
+            : $"Dziki gon do innowacji jest już uruchomiony pod adresem {runningUrl}.");
         if (runningUrl is not null && radarOptions.OpenBrowser)
         {
             BrowserLauncher.TryOpen(runningUrl, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
@@ -99,7 +99,7 @@ app.MapRazorComponents<App>()
 
 var startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
     .CreateLogger("RadarInnowacji.Startup");
-startupLogger.LogInformation("Radar Innowacji nasłuchuje na {Url}", appUrl);
+startupLogger.LogInformation("Dziki gon do innowacji nasłuchuje na {Url}", appUrl);
 
 if (port != 0)
 {
@@ -111,7 +111,7 @@ if (port != 0)
         }
 
         Console.WriteLine();
-        Console.WriteLine($"Radar Innowacji działa pod adresem {appUrl}");
+        Console.WriteLine($"Dziki gon do innowacji działa pod adresem {appUrl}");
         Console.WriteLine("Aby zakończyć: użyj przycisku „Zamknij aplikację” w menu albo zamknij to okno (Ctrl+C).");
         Console.WriteLine();
         if (radarOptions.OpenBrowser)
@@ -125,7 +125,7 @@ if (OperatingSystem.IsWindows() && port != 0 && !Console.IsOutputRedirected)
 {
     try
     {
-        Console.Title = $"Radar Innowacji – {appUrl}";
+        Console.Title = $"Dziki gon do innowacji – {appUrl}";
     }
     catch (IOException)
     {

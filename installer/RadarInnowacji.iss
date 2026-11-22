@@ -1,11 +1,11 @@
-; Radar Innowacji – skrypt instalatora Inno Setup 6
+; Dziki gon do innowacji – skrypt instalatora Inno Setup 6
 ; Budowanie: installer\build-installer.ps1 (Windows) lub installer/build-installer.sh (Linux + wine).
 ; Wejście: installer\publish\win-x64 (dotnet publish -c Release -r win-x64 --self-contained).
 ; Wynik:   installer\Output\RadarInnowacji-Setup.exe
 
-#define AppName "Radar Innowacji"
+#define AppName "Dziki gon do innowacji"
 #define AppVersion "1.0.0"
-#define AppPublisher "Zespół Radar Innowacji"
+#define AppPublisher "Zespół Dziki gon do innowacji"
 #define AppExeName "RadarInnowacji.Web.exe"
 #define PublishDir "publish\win-x64"
 
@@ -22,7 +22,7 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=Output
 OutputBaseFilename=RadarInnowacji-Setup
-SetupIconFile=..\src\RadarInnowacji.Web\radar.ico
+SetupIconFile=..\src\RadarInnowacji.Web\dzik.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName}
 Compression=lzma2/max
@@ -79,7 +79,7 @@ begin
   begin
     // Domyślnie (także przy deinstalacji cichej) dane są zachowywane.
     if (not UninstallSilent) and
-       (MsgBox('Czy usunąć również dane użytkownika Radaru Innowacji?' + #13#10 + #13#10 +
+       (MsgBox('Czy usunąć również dane użytkownika aplikacji Dziki gon do innowacji?' + #13#10 + #13#10 +
                'Folder: ' + DataDirectory + #13#10 +
                '(baza odkryć, logi, ustawienia lokalne)' + #13#10 + #13#10 +
                'Wybierz „Nie”, aby zachować dane na potrzeby ponownej instalacji.',

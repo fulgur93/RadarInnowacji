@@ -11,8 +11,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
-    <ApplicationIcon>radar.ico</ApplicationIcon>
-    <Product>Radar Innowacji</Product>
+    <ApplicationIcon>dzik.ico</ApplicationIcon>
+    <Product>Dziki gon do innowacji</Product>
     <Version>1.0.0</Version>
   </PropertyGroup>
 
