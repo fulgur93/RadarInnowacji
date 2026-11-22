@@ -24,6 +24,10 @@ public sealed class SubmissionService(
     public const string SourceName = "Zgłoszenia instytucji";
     /// <summary>Adres wewnętrzny – zgłoszenia nie mają zewnętrznego źródła do skanowania.</summary>
     public const string SourceUrl = "/zglos";
+    private static readonly TimeSpan RateLimitWindow = TimeSpan.FromMinutes(15);
+    private const int RateLimitMaxSubmissions = 5;
+    private readonly object _rateLimitLock = new();
+    private readonly Dictionary<string, List<DateTime>> _submissionAttempts = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Przykładowe zgłoszenie (przypadek demonstracyjny 1 z docs/DEMO.md). Instytucja i twórcy
@@ -56,6 +60,19 @@ public sealed class SubmissionService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(submission);
+
+        if (!string.IsNullOrWhiteSpace(submission.Website))
+        {
+            logger.LogWarning("Odrzucono zgłoszenie: wypełnione pole honeypot.");
+            return new SubmissionResult { Success = false, Errors = ["Nie udało się wysłać zgłoszenia. Spróbuj ponownie."] };
+        }
+
+        var rateLimitError = CheckRateLimit(submission.Institution, submission.ContactEmail);
+        if (rateLimitError is not null)
+        {
+            return new SubmissionResult { Success = false, Errors = [rateLimitError] };
+        }
+
         var errors = Validate(submission);
         if (errors.Count > 0)
         {
@@ -271,5 +288,51 @@ public sealed class SubmissionService(
 
         var trimmed = value.Trim();
         return trimmed.Length > maxLength ? trimmed[..maxLength] : trimmed;
+    }
+
+    private string? CheckRateLimit(string? institution, string? email)
+    {
+        var key = BuildRateLimitKey(institution, email);
+        var now = DateTime.UtcNow;
+        lock (_rateLimitLock)
+        {
+            if (!_submissionAttempts.TryGetValue(key, out var attempts))
+            {
+                attempts = [];
+                _submissionAttempts[key] = attempts;
+            }
+
+            attempts.RemoveAll(x => now - x > RateLimitWindow);
+            if (attempts.Count >= RateLimitMaxSubmissions)
+            {
+                return "Zbyt wiele zgłoszeń w krótkim czasie. Spróbuj ponownie później.";
+            }
+
+            attempts.Add(now);
+
+            // Proste sprzątanie starych kluczy, żeby słownik nie rósł bez końca.
+            if (_submissionAttempts.Count > 200)
+            {
+                var stale = _submissionAttempts.Where(x => x.Value.Count == 0).Select(x => x.Key).ToList();
+                foreach (var staleKey in stale)
+                {
+                    _submissionAttempts.Remove(staleKey);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string BuildRateLimitKey(string? institution, string? email)
+    {
+        var normalizedEmail = string.IsNullOrWhiteSpace(email) ? string.Empty : email.Trim().ToLowerInvariant();
+        if (normalizedEmail.Length > 0)
+        {
+            return "email:" + normalizedEmail;
+        }
+
+        var normalizedInstitution = string.IsNullOrWhiteSpace(institution) ? "unknown" : institution.Trim().ToLowerInvariant();
+        return "inst:" + normalizedInstitution;
     }
 }

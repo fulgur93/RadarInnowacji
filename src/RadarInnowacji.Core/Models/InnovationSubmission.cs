@@ -18,6 +18,9 @@ public sealed class InnovationSubmission
     public string? Link { get; set; }
     public string? ContactEmail { get; set; }
     public bool ContactConsent { get; set; }
+
+    /// <summary>Pole honeypot - powinno pozostać puste. Wypełnione oznacza bota.</summary>
+    public string? Website { get; set; }
 }
 
 public sealed class SubmissionResult
