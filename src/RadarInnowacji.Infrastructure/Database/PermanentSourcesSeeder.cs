@@ -50,7 +50,13 @@ public sealed class PermanentSourcesSeeder(RadarDbContext db) : IPermanentSource
 
         // Polskie platformy wsparcia/crowdfunding – obserwowane jako strony publiczne (informacyjnie)
         new("PolakPotrafi.pl – projekty", "https://polakpotrafi.pl/projekty", RadarKind.Wiadomosci, SourceType.HtmlPage, 720),
-        new("Wesprzyj.to – zbiórki", "https://wesprzyj.to/wyszukaj", RadarKind.Wiadomosci, SourceType.HtmlPage, 720)
+        new("Wesprzyj.to – zbiórki", "https://wesprzyj.to/wyszukaj", RadarKind.Wiadomosci, SourceType.HtmlPage, 720),
+
+        // Repozytoria kodu – publiczne API, filtrowane po słowach kluczowych innowacji
+        new("GitHub – innowacje (PL)", "https://api.github.com", RadarKind.Repozytorium, SourceType.GitHubApi, 360,
+            """{"query":{"keywords":["prototype","proof of concept","novel method","prototyp","nowa metoda","autonomiczny system"],"topics":[],"languages":[],"createdWithinDays":30}}"""),
+        new("GitLab – innowacje (PL)", "https://gitlab.com", RadarKind.Repozytorium, SourceType.GitLabApi, 360,
+            """{"query":{"keywords":["prototype","proof of concept","novel method","prototyp","nowa metoda","autonomiczny system"],"topics":[],"languages":[],"createdWithinDays":30}}""")
     ];
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)
